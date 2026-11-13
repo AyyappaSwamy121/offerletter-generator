@@ -1,0 +1,572 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    /* Styling variables and UI components */
+    :root {
+        --primary: #3182ce;
+        --primary-hover: #2b6cb0;
+        --success: #38a169;
+        --success-hover: #2f855a;
+        --danger: #e53e3e;
+        --danger-hover: #c53030;
+        --warning: #dd6b20;
+        --warning-light: #fffaf0;
+        --warning-border: #fbd38d;
+        --gray-50: #f7fafc;
+        --gray-100: #edf2f7;
+        --gray-200: #e2e8f0;
+        --gray-700: #4a5568;
+        --gray-800: #2d3748;
+    }
+    
+    .restore-container {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        color: var(--gray-800);
+        margin: 20px 0;
+    }
+    
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .stat-card {
+        background: white;
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
+    }
+    
+    .stat-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        font-weight: bold;
+        color: #718096;
+        letter-spacing: 0.5px;
+        margin-bottom: 5px;
+    }
+    
+    .stat-value {
+        font-size: 28px;
+        font-weight: 800;
+        color: var(--gray-800);
+    }
+    
+    /* Filters Bar */
+    .filter-bar {
+        background: var(--gray-50);
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        padding: 15px 20px;
+        margin-bottom: 25px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .filter-input {
+        padding: 8px 12px;
+        border: 1px solid var(--gray-200);
+        border-radius: 6px;
+        font-size: 13px;
+        background: white;
+        outline: none;
+        min-width: 180px;
+    }
+    
+    .filter-input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.1);
+    }
+    
+    /* Buttons */
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.2s, transform 0.1s;
+        text-decoration: none;
+    }
+    
+    .btn:active {
+        transform: scale(0.98);
+    }
+    
+    .btn-primary {
+        background-color: var(--primary);
+        color: white !important;
+    }
+    .btn-primary:hover {
+        background-color: var(--primary-hover);
+    }
+    
+    .btn-success {
+        background-color: var(--success);
+        color: white !important;
+    }
+    .btn-success:hover {
+        background-color: var(--success-hover);
+    }
+    
+    .btn-danger {
+        background-color: var(--danger);
+        color: white !important;
+    }
+    .btn-danger:hover {
+        background-color: var(--danger-hover);
+    }
+    
+    .btn-outline {
+        background-color: transparent;
+        border: 1px solid var(--gray-200);
+        color: var(--gray-700) !important;
+    }
+    .btn-outline:hover {
+        background-color: var(--gray-100);
+    }
+    
+    /* Table / List View */
+    .log-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 30px;
+    }
+    
+    .log-table th {
+        background: var(--gray-50);
+        padding: 12px 16px;
+        font-weight: 700;
+        text-align: left;
+        font-size: 12px;
+        color: #718096;
+        text-transform: uppercase;
+        border-bottom: 1px solid var(--gray-200);
+    }
+    
+    .log-table td {
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--gray-100);
+        font-size: 13px;
+        vertical-align: middle;
+    }
+    
+    .row-expanded-container {
+        display: none;
+        background-color: var(--gray-50);
+        padding: 20px;
+        border-bottom: 1px solid var(--gray-200);
+    }
+    
+    .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+    }
+    
+    .detail-section {
+        background: white;
+        border: 1px solid var(--gray-200);
+        border-radius: 6px;
+        padding: 15px;
+    }
+    
+    .detail-title {
+        font-size: 12px;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: #718096;
+        margin-bottom: 10px;
+        border-bottom: 1px solid var(--gray-100);
+        padding-bottom: 5px;
+    }
+    
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 0;
+        font-size: 12px;
+        border-bottom: 1px dotted var(--gray-100);
+    }
+    
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+    
+    .detail-label {
+        font-weight: 600;
+        color: #718096;
+    }
+    
+    .detail-value {
+        color: var(--gray-800);
+        text-align: right;
+    }
+    
+    /* Conflict Warning Panel */
+    .conflict-warning {
+        background: var(--warning-light);
+        border-left: 4px solid var(--warning);
+        border-top: 1px solid var(--warning-border);
+        border-bottom: 1px solid var(--warning-border);
+        border-right: 1px solid var(--warning-border);
+        border-radius: 6px;
+        padding: 15px;
+        margin-top: 15px;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    
+    .badge-pending {
+        background-color: #feebc8;
+        color: #c05621;
+    }
+    
+    .badge-restored {
+        background-color: #c6f6d5;
+        color: #22543d;
+    }
+    
+    .badge-type {
+        background-color: #e2e8f0;
+        color: #4a5568;
+    }
+    
+    .clickable-row {
+        cursor: pointer;
+    }
+    .clickable-row:hover {
+        background-color: rgba(49, 130, 206, 0.02);
+    }
+</style>
+<script>
+    function toggleRow(id) {
+        var el = document.getElementById('details-' + id);
+        if (el.style.display === 'none' || el.style.display === '') {
+            el.style.display = 'table-row';
+        } else {
+            el.style.display = 'none';
+        }
+    }
+    
+    function toggleAllSelect(master) {
+        var checkboxes = document.getElementsByClassName('select-item');
+        for (var i = 0; i < checkboxes.length; i++) {
+            checkboxes[i].checked = master.checked;
+        }
+    }
+</script>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url 'admin:certificates_deletedduplicatelog_changelist' %}">Deleted Duplicate Logs</a>
+&rsaquo; Restore Dashboard
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="restore-container">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
+        <h1 style="margin:0; font-size:24px; font-weight:800; color:var(--gray-800);">🛡️ Restore & Archive Management</h1>
+        <a href="{% url 'admin:certificates_deletedduplicatelog_changelist' %}" class="btn btn-outline">&larr; Back to Logs</a>
+    </div>
+    
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+        <div class="stat-card" style="border-top: 4px solid var(--primary);">
+            <div class="stat-label">Total Archived Logs</div>
+            <div class="stat-value">{{ stats.total }}</div>
+        </div>
+        <div class="stat-card" style="border-top: 4px solid var(--danger);">
+            <div class="stat-label">Deleted Today</div>
+            <div class="stat-value" style="color: var(--danger);">{{ stats.deleted_today }}</div>
+        </div>
+        <div class="stat-card" style="border-top: 4px solid var(--success);">
+            <div class="stat-label">Restored Records</div>
+            <div class="stat-value" style="color: var(--success);">{{ stats.restored }}</div>
+        </div>
+        <div class="stat-card" style="border-top: 4px solid var(--warning);">
+            <div class="stat-label">Pending Restores</div>
+            <div class="stat-value" style="color: var(--warning);">{{ stats.pending }}</div>
+        </div>
+        <div class="stat-card" style="border-top: 4px solid #805ad5;">
+            <div class="stat-label">Restored Today</div>
+            <div class="stat-value" style="color: #805ad5;">{{ stats.restored_today }}</div>
+        </div>
+    </div>
+    
+    <!-- Filter and Search -->
+    <form method="GET" class="filter-bar">
+        <div class="filter-group">
+            <input type="text" name="q" value="{{ search_query }}" placeholder="Search by Name, Roll No, Email..." class="filter-input" style="min-width: 250px;">
+            
+            <select name="record_type" class="filter-input" style="min-width: 150px;">
+                <option value="">-- All Types --</option>
+                <option value="Certificate" {% if record_type == 'Certificate' %}selected{% endif %}>Offer Letters / Certificates</option>
+                <option value="Certificate_student" {% if record_type == 'Certificate_student' %}selected{% endif %}>Staging Students</option>
+            </select>
+            
+            <select name="status" class="filter-input" style="min-width: 150px;">
+                <option value="">-- All Statuses --</option>
+                <option value="pending" {% if restore_status == 'pending' %}selected{% endif %}>Pending</option>
+                <option value="restored" {% if restore_status == 'restored' %}selected{% endif %}>Restored</option>
+            </select>
+            
+            <button type="submit" class="btn btn-primary">Search</button>
+            {% if search_query or record_type or restore_status %}
+                <a href="." class="btn btn-outline">Clear</a>
+            {% endif %}
+        </div>
+    </form>
+    
+    <!-- Main Form for Bulk Actions -->
+    <form method="POST" id="bulk-action-form">
+        {% csrf_token %}
+        <div style="background: white; border: 1px solid var(--gray-200); border-radius: 8px; overflow: hidden; padding: 12px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom: none; border-bottom-left-radius: 0; border-bottom-right-radius: 0;">
+            <div style="font-weight:700; color:var(--gray-700); font-size:14px;">Select logs to perform bulk operations:</div>
+            <div style="display:flex; gap:10px;">
+                <button type="submit" name="action" value="bulk_restore" class="btn btn-success" onclick="return confirm('Are you sure you want to BULK FORCE RESTORE all selected records? This will override active constraints.');">⚡ Bulk Restore Selected</button>
+                <button type="submit" name="action" value="bulk_delete" class="btn btn-danger" onclick="return confirm('Are you sure you want to PERMANENTLY delete these archive logs? This action is irreversible!');">🗑️ Bulk Permanent Delete</button>
+            </div>
+        </div>
+        
+        <table class="log-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px; text-align: center;"><input type="checkbox" onclick="toggleAllSelect(this);"></th>
+                    <th style="width: 80px;">Type</th>
+                    <th>Full Name</th>
+                    <th>Roll Number</th>
+                    <th>Email</th>
+                    <th>Deleted At</th>
+                    <th>Reason</th>
+                    <th>Restore Status</th>
+                    <th style="width: 150px; text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in logs %}
+                <tr class="clickable-row" onclick="if(event.target.type !== 'checkbox' && event.target.tagName !== 'A' && event.target.tagName !== 'BUTTON') toggleRow('{{ item.log.pk }}');">
+                    <td style="text-align: center;"><input type="checkbox" name="selected_ids" value="{{ item.log.pk }}" class="select-item"></td>
+                    <td>
+                        {% if item.log.record_type == 'Certificate' %}
+                        <span class="badge badge-type" style="background:#ebf8ff; color:#2b6cb0;">Offer Letter</span>
+                        {% else %}
+                        <span class="badge badge-type" style="background:#faf5ff; color:#553c9a;">Staging</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-weight: 700; color: var(--gray-800);">{{ item.log.full_name }}</td>
+                    <td><code>{{ item.log.roll_number }}</code></td>
+                    <td>{{ item.log.email }}</td>
+                    <td style="font-size: 11px; color:#718096;">{{ item.log.deleted_at|date:"Y-m-d H:i" }}</td>
+                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ item.log.deletion_reason }}">{{ item.log.deletion_reason|default:"-" }}</td>
+                    <td>
+                        {% if item.log.is_restored %}
+                        <span class="badge badge-restored">Restored</span>
+                        {% else %}
+                        <span class="badge badge-pending">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right; display:flex; gap:6px; justify-content: flex-end;">
+                        {% if not item.log.is_restored %}
+                            {% if item.has_conflict %}
+                            <a href="{% url 'admin:restore-log-record' object_id=item.log.pk %}" class="btn btn-primary" style="padding: 4px 8px; font-size:11px; background:#dd6b20;">Resolve Conflict</a>
+                            {% else %}
+                            <a href="{% url 'admin:restore-log-record' object_id=item.log.pk %}" class="btn btn-success" style="padding: 4px 8px; font-size:11px;">Restore</a>
+                            {% endif %}
+                            <a href="{% url 'admin:restore-log-record-new' object_id=item.log.pk %}" class="btn btn-outline" style="padding: 4px 8px; font-size:11px;">Restore as New</a>
+                        {% else %}
+                            <span style="font-size: 11px; color:#a0aec0;">By {{ item.log.restored_by }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                
+                <!-- Expanded details block -->
+                <tr id="details-{{ item.log.pk }}" style="display: none; background: var(--gray-50);">
+                    <td colspan="9">
+                        <div style="padding: 10px 20px 20px 20px;">
+                            <h3 style="margin-top:0; margin-bottom:15px; font-size:14px; font-weight:700; color:var(--primary); display:flex; align-items:center; gap:8px;">
+                                📝 Detailed Archive Record Snapshot (ID: {{ item.log.source_record_id }})
+                            </h3>
+                            
+                            <div class="detail-grid">
+                                <!-- Student Info -->
+                                <div class="detail-section">
+                                    <div class="detail-title">Student Information</div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Full Name:</span>
+                                        <span class="detail-value">{{ item.log.full_name }}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Roll Number:</span>
+                                        <span class="detail-value"><code>{{ item.log.roll_number }}</code></span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Email:</span>
+                                        <span class="detail-value">{{ item.log.email }}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Mobile Number:</span>
+                                        <span class="detail-value">{{ item.log.candidate_mobile|default:item.fields.contact|default:"-" }}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Gender:</span>
+                                        <span class="detail-value">{{ item.fields.gender|default:"-" }}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Date of Birth:</span>
+                                        <span class="detail-value">{{ item.fields.dob|default:"-" }}</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Academic Info -->
+                                <div class="detail-section">
+                                    <div class="detail-title">Academic Details</div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">College Name:</span>
+                                        <span class="detail-value">{{ item.log.college_name }}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Branch/Course:</span>
+                                        <span class="detail-value">{{ item.log.course|default:"-" }}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">University:</span>
+                                        <span class="detail-value">{{ item.fields.affiliated_name|default:"-" }}</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Internship Info -->
+                                <div class="detail-section">
+                                    <div class="detail-title">Internship Details</div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Internship Title:</span>
+                                        <span class="detail-value">{{ item.log.internship_title|default:"-" }}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Duration:</span>
+                                        <span class="detail-value">{{ item.log.internship_duration|default:"-" }}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Start Date:</span>
+                                        <span class="detail-value">{{ item.log.start_date|default:"-" }}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">End Date:</span>
+                                        <span class="detail-value">{{ item.log.end_date|default:"-" }}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Issue Date:</span>
+                                        <span class="detail-value">{{ item.log.issue_date|default:"-" }}</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Offer Letter info -->
+                                {% if item.log.record_type == 'Certificate' %}
+                                <div class="detail-section">
+                                    <div class="detail-title">Offer Letter Details</div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Offer Letter ID:</span>
+                                        <span class="detail-value"><code>{{ item.fields.certificate_id|default:"-" }}</code></span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Offer Template:</span>
+                                        <span class="detail-value">{{ item.log.offer_template|default:"-" }}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Generated PDF File:</span>
+                                        <span class="detail-value">{{ item.fields.certificate_pdf|default:"-" }}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Email Sent:</span>
+                                        <span class="detail-value">{% if item.fields.email_sent %}Sent ({{ item.fields.email_sent_at }}){% else %}Pending{% endif %}</span>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Conflict warning panel -->
+                            {% if item.has_conflict %}
+                            <div class="conflict-warning">
+                                <span style="font-size: 20px;">⚠️</span>
+                                <div>
+                                    <strong style="color:var(--warning);">Unique Constraint Conflict Detected!</strong><br>
+                                    <span style="font-size: 12px; color: var(--gray-700);">
+                                        Active record(s) already exist with these details: <strong>{{ item.conflict_details }}</strong>. 
+                                        Clicking "Restore" directly will direct you to a conflict screen, or you can "Restore as New Record" or use "⚡ Bulk Restore" to bypass constraint warnings.
+                                    </span>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <!-- Deletion Audit Timeline -->
+                            <div style="margin-top: 15px; font-size:12px; padding: 12px; background: white; border:1px solid var(--gray-200); border-radius: 6px; display:flex; justify-content:space-between; align-items:center;">
+                                <div>
+                                    🛡️ <strong>Archived Audit Timeline:</strong> Deleted at <strong>{{ item.log.deleted_at }}</strong> by <strong>{{ item.log.deleted_by|default:"System" }}</strong>
+                                    {% if item.log.duplicate_detection_reason %} | Reason: <em>{{ item.log.duplicate_detection_reason }}</em>{% endif %}
+                                </div>
+                                {% if item.log.is_restored %}
+                                <div style="color: var(--success); font-weight:700;">
+                                    Restored on {{ item.log.restored_at }} by {{ item.log.restored_by }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" style="text-align: center; padding: 40px; color:#a0aec0;">
+                        No archived/deleted records match your search query and filters.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </form>
+</div>
+{% endblock %}

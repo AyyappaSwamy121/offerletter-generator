@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }} - CertGen{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+
+            <!-- Breadcrumb Navigation -->
+            <nav aria-label="breadcrumb" class="mb-3">
+                <ol class="breadcrumb small">
+                    <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'college_admin_list' %}">College Admin Management</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{% if is_edit %}Edit Administrator{% else %}Add Administrator{% endif %}</li>
+                </ol>
+            </nav>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="fw-bold mb-0 text-dark">
+                            <i class="fas fa-{% if is_edit %}user-edit{% else %}user-plus{% endif %} text-primary me-2"></i>
+                            {% if is_edit %}Edit College Administrator{% else %}Add College Administrator{% endif %}
+                        </h4>
+                        <p class="text-muted small mb-0 mt-1">
+                            {% if is_edit %}Update institution assignment or account status.{% else %}Create an authenticated administrator account for an authorized college.{% endif %}
+                        </p>
+                    </div>
+                    <a href="{% url 'college_admin_list' %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i> Back to List
+                    </a>
+                </div>
+
+                <div class="card-body p-4">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        <!-- Full Name -->
+                        <div class="mb-3">
+                            <label for="full_name" class="form-label fw-semibold">
+                                Full Name <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" id="full_name" name="full_name" 
+                                   value="{% if is_edit %}{{ profile.full_name }}{% else %}{{ form_data.full_name }}{% endif %}" 
+                                   placeholder="e.g. Dr. K. Ramesh / Prof. S. Sharma" required>
+                            <div class="form-text small">Primary contact name of the institution's placement or internship coordinator.</div>
+                        </div>
+
+                        <!-- Email Address -->
+                        <div class="mb-3">
+                            <label for="email" class="form-label fw-semibold">
+                                Email Address <span class="text-danger">*</span>
+                            </label>
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   value="{% if is_edit %}{{ profile.user.email }}{% else %}{{ form_data.email }}{% endif %}" 
+                                   placeholder="admin@college.edu.in" required>
+                            <div class="form-text small">Used for logging into the dedicated College Administrator SaaS dashboard.</div>
+                        </div>
+
+                        <!-- Contact Phone -->
+                        <div class="mb-3">
+                            <label for="phone" class="form-label fw-semibold">
+                                Contact Phone Number
+                            </label>
+                            <input type="text" class="form-control" id="phone" name="phone" 
+                                   value="{% if is_edit %}{{ profile.phone }}{% else %}{{ form_data.phone }}{% endif %}" 
+                                   placeholder="e.g. +91 9876543210">
+                        </div>
+
+                        <!-- College Selection -->
+                        <div class="mb-3">
+                            <label for="college_id" class="form-label fw-semibold">
+                                Assigned College / Institution <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select" id="college_id" name="college_id" required>
+                                <option value="">-- Select Participating Institution --</option>
+                                {% for col in colleges %}
+                                    <option value="{{ col.id }}" 
+                                            {% if is_edit and profile.college.id == col.id %}selected
+                                            {% elif form_data.college_id == col.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ col.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text small">
+                                <i class="fas fa-info-circle text-primary me-1"></i>
+                                Dynamically populated from active institutions. Strict backend isolation guarantees this administrator can only access records belonging to this selected college.
+                            </div>
+                        </div>
+
+                        <!-- Password Fields (Required for creation, optional for edit) -->
+                        {% if not is_edit %}
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label for="password" class="form-label fw-semibold">
+                                    Initial Password <span class="text-danger">*</span>
+                                </label>
+                                <input type="password" class="form-control" id="password" name="password" 
+                                       placeholder="Min. 6 characters" required minlength="6">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="confirm_password" class="form-label fw-semibold">
+                                    Confirm Password <span class="text-danger">*</span>
+                                </label>
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password" 
+                                       placeholder="Re-enter password" required minlength="6">
+                            </div>
+                            <div class="col-12 mt-1">
+                                <span class="form-text small text-muted">Passwords are hashed securely using PBKDF2 with SHA-256 and never stored in plain text.</span>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Account Status -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold d-block">Account Status</label>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="status" id="status_active" value="active" 
+                                       {% if not is_edit or profile.is_active %}checked{% endif %}>
+                                <label class="form-check-label text-success fw-medium" for="status_active">
+                                    <i class="fas fa-check-circle me-1"></i> Active (Can log in and export)
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="status" id="status_inactive" value="inactive" 
+                                       {% if is_edit and not profile.is_active %}checked{% endif %}>
+                                <label class="form-check-label text-danger fw-medium" for="status_inactive">
+                                    <i class="fas fa-ban me-1"></i> Deactivated / Suspended
+                                </label>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{% url 'college_admin_list' %}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary px-4 fw-semibold">
+                                <i class="fas fa-save me-1"></i>
+                                {% if is_edit %}Save Changes{% else %}Create Administrator Account{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+

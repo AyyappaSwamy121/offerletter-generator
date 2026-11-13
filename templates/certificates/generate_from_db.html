@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Generate Offer Letters from Database - Offer Letter Generation System{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-lg rounded p-4 border-4">
+        <h2 class="text-center mb-4">🧾 Generate Offer Letters from Student Database</h2>
+
+        <form method="post">
+            {% csrf_token %}
+            <!-- Offer Letter Type Selection -->
+            <div class="mb-3">
+                <label for="offer_type" class="form-label fw-semibold">
+                    <i class="fas fa-file-contract me-2 text-primary"></i>
+                    Select Offer Letter Type *
+                </label>
+                <select name="offer_type" id="offer_type" class="form-control" required>
+                    {% for group_label, choices in offer_type_choices %}
+                    <optgroup label="{{ group_label }}">
+                        {% for value, label in choices %}
+                        <option value="{{ value }}" {% if forloop.first and forloop.parentloop.first %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    {% endfor %}
+                </select>
+                <div class="form-text">
+                    <i class="fas fa-info-circle me-1"></i>
+                    <strong>Virtual</strong> — Digital offer letter, sent via email automatically.
+                    <strong>Physical</strong> — Printable offer letter with address &amp; reporting details.
+                </div>
+            </div>
+            <div class="text-center">
+                <button type="submit" class="btn btn-success px-4 py-2 rounded-pill">
+                    🚀 Generate All Offer Letters
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

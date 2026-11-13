@@ -1,0 +1,123 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Offer Letter Details: {{ certificate.full_name }}{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>Offer Letter Details</h1>
+    <h2>{{ certificate.full_name }}</h2>
+
+    <fieldset class="module aligned">
+        <h2>Candidate Information</h2>
+        <div class="form-row">
+            <div><label>Candidate Name:</label>
+                <p>{{ certificate.full_name }}</p>
+            </div>
+        </div>
+        <div class="form-row">
+            <div><label>Roll / Hall Ticket Number:</label>
+                <p>{{ certificate.roll_number }}</p>
+            </div>
+        </div>
+        <div class="form-row">
+            <div><label>Candidate Email:</label>
+                <p>{{ certificate.email }}</p>
+            </div>
+        </div>
+        <div class="form-row">
+            <div><label>Candidate Mobile:</label>
+                <p>{{ certificate.candidate_mobile }}</p>
+            </div>
+        </div>
+    </fieldset>
+
+    <fieldset class="module aligned">
+        <h2>Institution & Course Details</h2>
+        <div class="form-row">
+            <div><label>Course Name:</label>
+                <p>{{ certificate.course }}</p>
+            </div>
+        </div>
+        <div class="form-row">
+            <div><label>Institution Name:</label>
+                <p>{{ certificate.college_name }}</p>
+            </div>
+        </div>
+        <div class="form-row">
+            <div><label>Institution Address:</label>
+                <p>{{ certificate.institution_address }}</p>
+            </div>
+        </div>
+        <div class="form-row">
+            <div><label>Institution Phone:</label>
+                <p>{{ certificate.institution_phone }}</p>
+            </div>
+        </div>
+    </fieldset>
+
+    <fieldset class="module aligned">
+        <h2>Internship Details</h2>
+        <div class="form-row">
+            <div><label>Internship Title:</label>
+                <p>{{ certificate.internship_title }}</p>
+            </div>
+        </div>
+        <div class="form-row">
+            <div><label>Internship Duration:</label>
+                <p>{{ certificate.internship_duration }}</p>
+            </div>
+        </div>
+        <div class="form-row">
+            <div><label>Start Date:</label>
+                <p>{{ certificate.start_date|date:"Y-m-d" }}</p>
+            </div>
+        </div>
+        <div class="form-row">
+            <div><label>End Date:</label>
+                <p>{{ certificate.end_date|date:"Y-m-d" }}</p>
+            </div>
+        </div>
+    </fieldset>
+
+    <fieldset class="module aligned">
+        <h2>Status</h2>
+        <div class="form-row">
+            <div><label>Issue Date:</label>
+                <p>{{ certificate.created_at|date:"Y-m-d" }}</p>
+            </div>
+        </div>
+        <div class="form-row">
+            <div><label>Verification Status:</label>
+                <p>{% if certificate.is_verified %}Verified{% else %}Not Verified{% endif %}</p>
+            </div>
+        </div>
+        <div class="form-row">
+            <div><label>Email Status:</label>
+                <p>{% if certificate.email_sent %}Sent{% else %}Not Sent{% endif %}</p>
+            </div>
+        </div>
+    </fieldset>
+
+    {% if certificate.certificate_image %}
+    <fieldset class="module">
+        <h2>Offer Letter Preview</h2>
+        <img src="{{ certificate.certificate_image.url }}" style="max-width: 800px; border: 1px solid #ccc;" />
+    </fieldset>
+    {% endif %}
+
+    {% if certificate.qr_code_image %}
+    <fieldset class="module">
+        <h2>Verification QR Code</h2>
+        <img src="{{ certificate.qr_code_image.url }}"
+            style="max-width: 200px; border: 1px solid #ccc; padding: 10px; background: white;" />
+        <p>Verification ID: {{ certificate.certificate_id }}</p>
+    </fieldset>
+    {% endif %}
+
+    <div class="submit-row">
+        <a href="{% url 'admin:certificates_certificate_changelist' %}" class="button">Back to list</a>
+        <a href="{% url 'admin:certificates_certificate_change' certificate.pk %}" class="button">Edit this record</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div style="max-width:800px; margin: 30px auto; padding: 25px; background:#fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+    <div style="background-color: #fffaf0; border-left: 4px solid #dd6b20; padding: 18px; margin-bottom: 25px; border-radius: 4px;">
+        <h2 style="margin:0 0 10px 0; color:#dd6b20; font-size: 20px;">⚠️ Restoration Conflict Detected</h2>
+        <p style="margin:0; font-size:15px; color:#744210; line-height: 1.5;">
+            An active record with Roll Number <strong>"{{ roll_number }}"</strong> already exists in the database.
+        </p>
+    </div>
+
+    <p style="font-size:15px; color:#4a5568; line-height: 1.6; margin-bottom: 30px;">
+        Restoring this record directly may create duplicate roll numbers. Please review and choose a course of action:
+    </p>
+
+    <div style="display:flex; flex-wrap: wrap; gap:15px;">
+        <a href="?force=true" style="background-color:#e53e3e; color:white; padding:12px 24px; border-radius:6px; text-decoration:none; font-weight:bold; font-size:14px; box-shadow: 0 2px 4px rgba(229, 62, 62, 0.2);">Force Restore (Override Warning)</a>
+        <a href="../restore-new/" style="background-color:#3182ce; color:white; padding:12px 24px; border-radius:6px; text-decoration:none; font-weight:bold; font-size:14px; box-shadow: 0 2px 4px rgba(49, 130, 206, 0.2);">Restore as New Record</a>
+        <a href="../../" style="background-color:#718096; color:white; padding:12px 24px; border-radius:6px; text-decoration:none; font-weight:bold; font-size:14px;">Cancel and Go Back</a>
+    </div>
+</div>
+{% endblock %}

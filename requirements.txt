@@ -1,0 +1,28 @@
+# ==============================================================================
+# Django Offer Letter Generation System - Dependencies
+# ==============================================================================
+
+# Core Django Framework
+Django>=4.2,<5.3
+
+# Image Processing & Offer Letter Generation
+Pillow>=9.3.0
+qrcode[pil]>=7.4.2
+
+# Excel Processing (Bulk Student Import & Exports)
+openpyxl>=3.1.2
+xlsxwriter>=3.1.0
+
+# Configuration & Environment Management
+python-decouple>=3.8
+
+# Date & Time Utilities
+python-dateutil>=2.8.2
+
+# Production WSGI Server & Database Drivers
+gunicorn>=21.2.0
+psycopg2-binary>=2.9.9
+
+# Google Drive Cloud Backup Integration (Optional)
+google-api-python-client>=2.147.0
+google-auth-oauthlib>=1.2.1

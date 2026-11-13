@@ -1,0 +1,111 @@
+# ==============================================================================
+# Django Offer Letter Generation System - .gitignore
+# ==============================================================================
+
+# 1. Environment & Secret Configuration Files (CRITICAL - NEVER COMMIT)
+.env
+.env.*
+!.env.example
+cred.py
+credentials.json
+token.json
+client_secret*.json
+certificate_project/.env
+local_settings.py
+secrets.json
+
+# 2. Python Virtual Environments
+venv/
+venv_old/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# 3. Python Bytecode, Cache & Distribution
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# 4. Databases & Live Data (CRITICAL - Student Records & Offer Letters)
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3-shm
+*.sqlite3-wal
+*.sqlite
+*.db
+*.bak
+*.backup
+db.sqlite3*
+
+# 5. Media Files, Uploaded Spreadsheets & Generated Student Documents
+media/*
+!media/CSC LOGO.png
+!media/CSC HEADER.png
+!media/CSC HEADER2.png
+!media/templates/
+!media/templates/**
+media/certificates/
+media/qr_codes/
+media/uploads/
+
+# User-uploaded raw excel data (student lists)
+*.xlsx
+*.xls
+*.csv
+!static/EXCEL_TEMPLATE_WITH_DATES.xlsx
+
+# 6. Static Collection Directory (Regenerated via collectstatic)
+staticfiles/
+
+# 7. Log Files
+*.log
+install.log
+server.log
+migrate.log
+*.log.*
+
+# 8. Scratch, Temporary & IDE Files
+scratch/
+tmp/
+temp/
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Editor & OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini

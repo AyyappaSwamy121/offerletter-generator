@@ -1,0 +1,90 @@
+{
+  "name": "Certificate System",
+  "description": "Django Certificate Generation System",
+  "keywords": ["django", "certificates", "offer-letters"],
+  "website": "https://offerletters.cscindia.org.in/",
+  "repository": "https://github.com/yourusername/certificate-system",
+  "logo": "https://offerletters.cscindia.org.in/static/images/logo.png",
+  "success_url": "/admin/",
+  "env": {
+    "DJANGO_SETTINGS_MODULE": "certificate_project.settings_production",
+    "SECRET_KEY": {
+      "description": "A secret key for Django",
+      "generator": "secret"
+    },
+    "DEBUG": {
+      "value": "False",
+      "description": "Debug mode"
+    },
+    "ALLOWED_HOSTS": {
+      "description": "Comma-separated list of allowed hosts",
+      "required": true
+    },
+    "DB_NAME": {
+      "description": "PostgreSQL database name",
+      "required": true
+    },
+    "DB_USER": {
+      "description": "PostgreSQL database user",
+      "required": true
+    },
+    "DB_PASSWORD": {
+      "description": "PostgreSQL database password",
+      "required": true
+    },
+    "DB_HOST": {
+      "description": "PostgreSQL database host",
+      "required": true
+    },
+    "DB_PORT": {
+      "value": "5432",
+      "description": "PostgreSQL database port"
+    },
+    "EMAIL_HOST": {
+      "value": "smtp.gmail.com",
+      "description": "Email server host"
+    },
+    "EMAIL_PORT": {
+      "value": "587",
+      "description": "Email server port"
+    },
+    "EMAIL_USE_TLS": {
+      "value": "True",
+      "description": "Use TLS for email"
+    },
+    "EMAIL_HOST_USER": {
+      "description": "Email username",
+      "required": true
+    },
+    "EMAIL_HOST_PASSWORD": {
+      "description": "Email password",
+      "required": true
+    },
+    "DEFAULT_FROM_EMAIL": {
+      "description": "Default from email address",
+      "required": true
+    },
+    "SITE_DOMAIN": {
+      "description": "Your domain name",
+      "required": true
+    },
+    "SITE_PROTOCOL": {
+      "value": "https",
+      "description": "Site protocol (http/https)"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "free"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "scripts": {
+    "postdeploy": "python manage.py migrate --noinput && python manage.py collectstatic --noinput"
+  }
+}

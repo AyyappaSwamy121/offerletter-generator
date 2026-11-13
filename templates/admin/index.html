@@ -1,0 +1,109 @@
+{% extends "admin/index.html" %}
+{% load i18n static %}
+{% load custom_admin_tags %}
+
+{% block content %}
+<div
+    style="margin-bottom: 20px; padding: 15px; background: #fff; border: 1px solid #eaeaea; border-radius: 4px; border-left: 5px solid #79aec8;">
+    {% get_system_config as system_config %}
+    <h2 style="margin-top: 0; color: #666;">Email Automation Control</h2>
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+        <p style="margin: 0; color: #444;">
+            Toggle automated email sending for Offer Letters.
+        </p>
+        <div class="toggle-container">
+            <label class="switch" style="position: relative; display: inline-block; width: 60px; height: 34px;">
+                <input type="checkbox" id="emailAutomationToggle" {% if system_config.email_automation_enabled %}checked{% endif %} style="opacity: 0; width: 0; height: 0;">
+                <span class="slider round"
+                    style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px;"></span>
+                <span class="slider-knob"
+                    style="position: absolute; content: ''; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%;"></span>
+            </label>
+            <span id="toggleLabel"
+                style="margin-left: 10px; font-weight: bold; font-size: 14px; vertical-align: top; line-height: 34px;">
+                {% if system_config.email_automation_enabled %}
+                <span style="color: green;">Enabled</span>
+                {% else %}
+                <span style="color: red;">Disabled</span>
+                {% endif %}
+            </span>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Simple CSS for toggle switch to work in admin without external libs */
+    .switch input:checked+.slider {
+        background-color: #2196F3;
+    }
+
+    .switch input:focus+.slider {
+        box-shadow: 0 0 1px #2196F3;
+    }
+
+    .switch input:checked+.slider .slider-knob {
+        transform: translateX(26px);
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const toggle = document.getElementById('emailAutomationToggle');
+        const label = document.getElementById('toggleLabel');
+        const sliderKnob = document.querySelector('.slider-knob');
+
+        // Helper to visually toggle since we are using custom CSS
+        // Actually the CSS handles visual state based on 'checked'.
+
+        toggle.addEventListener('change', function () {
+            const isEnabled = this.checked;
+            label.innerHTML = '<span style="color: orange;">Updating...</span>';
+            this.disabled = true;
+
+            fetch("/api/toggle-email-automation/", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    enabled: isEnabled
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        if (data.enabled) {
+                            label.innerHTML = '<span style="color: green;">Enabled</span>';
+                        } else {
+                            label.innerHTML = '<span style="color: red;">Disabled</span>';
+                        }
+                    } else {
+                        alert('Error updating setting: ' + data.message);
+                        this.checked = !isEnabled; // Revert
+                        if (!isEnabled) {
+                            label.innerHTML = '<span style="color: green;">Enabled</span>';
+                        } else {
+                            label.innerHTML = '<span style="color: red;">Disabled</span>';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred. Please check server logs.');
+                    this.checked = !isEnabled; // Revert
+                    if (!isEnabled) {
+                        label.innerHTML = '<span style="color: green;">Enabled</span>';
+                    } else {
+                        label.innerHTML = '<span style="color: red;">Disabled</span>';
+                    }
+                })
+                .finally(() => {
+                    this.disabled = false;
+                });
+        });
+    });
+</script>
+
+{{ block.super }}
+{% endblock %}

@@ -1,0 +1,25 @@
+{% load i18n %}
+<h3>{% blocktrans with filter_title=title %} By {{ filter_title }} {% endblocktrans %}</h3>
+<ul>
+{% for choice in choices %}
+    <li{% if choice.selected %} class="selected"{% endif %}>
+    <a href="{{ choice.query_string|safe }}" title="{{ choice.display }}">{{ choice.display }}</a></li>
+{% endfor %}
+    <li>
+        <form method="GET" style="padding: 5px 10px 10px 10px; display: block; border-top: 1px solid #eee; margin-top: 5px;">
+            {# Keep all other query parameters #}
+            {% for k, v in request.GET.items %}
+                {% if k != 'stipend_min' and k != 'stipend_max' and k != 'stipend_range' %}
+                    <input type="hidden" name="{{ k }}" value="{{ v }}">
+                {% endif %}
+            {% endfor %}
+            <div style="font-size: 11px; margin-bottom: 5px; color: #666; font-weight: bold;">Custom Range (₹):</div>
+            <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 5px;">
+                <input type="number" name="stipend_min" placeholder="Min" value="{{ request.GET.stipend_min|default:'' }}" style="width: 50px; font-size: 11px; padding: 2px; border: 1px solid #ccc; border-radius: 3px;">
+                <span style="font-size: 11px;">-</span>
+                <input type="number" name="stipend_max" placeholder="Max" value="{{ request.GET.stipend_max|default:'' }}" style="width: 50px; font-size: 11px; padding: 2px; border: 1px solid #ccc; border-radius: 3px;">
+            </div>
+            <button type="submit" style="font-size: 10px; padding: 2px 8px; border: 1px solid #bbb; background: #f5f5f5; border-radius: 3px; cursor: pointer; display: block; width: 100%; text-align: center;">Go</button>
+        </form>
+    </li>
+</ul>

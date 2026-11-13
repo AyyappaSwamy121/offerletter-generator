@@ -1,0 +1,679 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }} - CSC India</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome 6 -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #0f172a;
+            --light-bg: #f8fafc;
+            --border-color: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--light-bg);
+            color: #334155;
+            min-height: 100vh;
+        }
+
+        .navbar-college {
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.15);
+        }
+
+        .college-brand-logo {
+            height: 38px;
+            background: #ffffff;
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+
+        .stat-card {
+            background: #ffffff;
+            border-radius: 14px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+        }
+
+        .bg-blue-light { background: #dbeafe; color: #1e40af; }
+        .bg-green-light { background: #dcfce7; color: #166534; }
+        .bg-purple-light { background: #f3e8ff; color: #6b21a8; }
+        .bg-amber-light { background: #fef3c7; color: #92400e; }
+
+        .card-main {
+            background: #ffffff;
+            border-radius: 14px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+        }
+
+        .table > :not(caption) > * > * {
+            padding: 0.9rem 0.85rem;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: #f1f5f9;
+        }
+
+        .btn-action {
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+        }
+
+        .badge-status {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- College Administrator Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-college sticky-top">
+        <div class="container-fluid px-lg-4">
+            <a class="navbar-brand d-flex align-items-center" href="{% url 'college_dashboard' %}">
+                <img src="/media/CSC%20LOGO.png" alt="CSC India" class="college-brand-logo me-2">
+                <div>
+                    <div class="fw-bold fs-6 lh-1">CSC India</div>
+                    <div class="text-white-50" style="font-size: 0.72rem;">Council for Skills and Competencies</div>
+                </div>
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#collegeNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="collegeNav">
+                <!-- Institution Badge in Header -->
+                <div class="ms-lg-4 my-2 my-lg-0">
+                    <span class="badge bg-white text-primary px-3 py-2 fs-6 shadow-sm">
+                        <i class="fas fa-university me-1 text-primary"></i> {{ college.name }}
+                    </span>
+                </div>
+
+                <ul class="navbar-nav ms-auto align-items-lg-center">
+                    <li class="nav-item me-lg-2">
+                        <a class="nav-link active fw-medium" href="{% url 'college_dashboard' %}">
+                            <i class="fas fa-file-contract me-1"></i> Offer Letters
+                        </a>
+                    </li>
+
+                    <!-- User Profile Dropdown -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle text-white d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
+                            <div class="rounded-circle bg-white text-primary fw-bold d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px; font-size: 0.85rem;">
+                                {{ profile.full_name|make_list|first|upper }}
+                            </div>
+                            <span class="d-none d-sm-inline">{{ profile.full_name }}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2">
+                            <li class="px-3 py-2 border-bottom">
+                                <div class="fw-bold text-dark small">{{ profile.full_name }}</div>
+                                <div class="text-muted" style="font-size: 0.75rem;">{{ profile.user.email }}</div>
+                                <span class="badge bg-primary-subtle text-primary border mt-1" style="font-size: 0.68rem;">College Administrator</span>
+                            </li>
+                            <li>
+                                <a class="dropdown-item py-2 small" href="#" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                                    <i class="fas fa-key text-muted me-2"></i> Change Password
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item py-2 small" href="#" data-bs-toggle="modal" data-bs-target="#collegeInfoModal">
+                                    <i class="fas fa-info-circle text-muted me-2"></i> Institution Profile
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item py-2 small text-danger" href="{% url 'logout' %}">
+                                    <i class="fas fa-sign-out-alt me-2"></i> Logout Securely
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container-fluid px-lg-4 py-4">
+
+        <!-- Flash Messages -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+                    <i class="fas fa-{% if message.tags == 'success' %}check-circle text-success{% elif message.tags == 'error' %}exclamation-triangle text-danger{% else %}info-circle text-info{% endif %} me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- Welcome Banner -->
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <div>
+                <h3 class="fw-bold text-dark mb-0">
+                    {{ college.name }}
+                </h3>
+            </div>
+            <div class="text-muted small">
+                <i class="far fa-calendar-alt me-1"></i> Today: {% now "d M Y" %}
+            </div>
+        </div>
+
+        <!-- 4 Statistics Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-xl-3 col-md-6 col-sm-6">
+                <div class="stat-card p-3 d-flex align-items-center">
+                    <div class="stat-icon bg-blue-light me-3">
+                        <i class="fas fa-file-signature"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small fw-semibold text-uppercase">Total Offer Letters</div>
+                        <div class="h3 fw-bold text-dark mb-0">{{ stats.total_offer_letters }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 col-sm-6">
+                <div class="stat-card p-3 d-flex align-items-center">
+                    <div class="stat-icon bg-purple-light me-3">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small fw-semibold text-uppercase">Distinct Students</div>
+                        <div class="h3 fw-bold text-dark mb-0">{{ stats.total_students }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 col-sm-6">
+                <div class="stat-card p-3 d-flex align-items-center">
+                    <div class="stat-icon bg-amber-light me-3">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small fw-semibold text-uppercase">Generated This Month</div>
+                        <div class="h3 fw-bold text-dark mb-0">{{ stats.this_month }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 col-sm-6">
+                <div class="stat-card p-3 d-flex align-items-center">
+                    <div class="stat-icon bg-green-light me-3">
+                        <i class="fas fa-paper-plane"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small fw-semibold text-uppercase">Emails Delivered</div>
+                        <div class="h3 fw-bold text-success mb-0">{{ stats.emails_sent }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Card: Filter & Repository -->
+        <div class="card-main mb-4">
+            <!-- Filter Bar -->
+            <div class="p-3 border-bottom bg-white rounded-top">
+                <form method="get" class="row g-2 align-items-center" id="filterForm">
+                    <!-- Search Input -->
+                    <div class="col-xl-4 col-lg-4 col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0 text-muted">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <input type="text" class="form-control border-start-0 ps-0" name="search" value="{{ search }}" placeholder="Search by name, roll number, email, ID...">
+                        </div>
+                    </div>
+
+                    <!-- Course Filter -->
+                    <div class="col-xl-3 col-lg-3 col-md-6">
+                        <select name="course" class="form-select">
+                            <option value="">All Courses &amp; Specializations</option>
+                            {% for c_name in courses %}
+                                <option value="{{ c_name }}" {% if course == c_name %}selected{% endif %}>{{ c_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Email Status Filter -->
+                    <div class="col-xl-2 col-lg-2 col-md-4">
+                        <select name="email_status" class="form-select">
+                            <option value="">All Email Status</option>
+                            <option value="sent" {% if email_status == 'sent' %}selected{% endif %}>Email Delivered</option>
+                            <option value="not_sent" {% if email_status == 'not_sent' %}selected{% endif %}>Not Delivered</option>
+                        </select>
+                    </div>
+
+                    <!-- Date From -->
+                    <div class="col-xl-3 col-lg-3 col-md-4">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white small text-muted">From</span>
+                            <input type="date" class="form-control" name="date_from" value="{{ date_from }}">
+                        </div>
+                    </div>
+
+                    <!-- Date To & Filter Buttons -->
+                    <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2 pt-2 border-top">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="input-group" style="width: 220px;">
+                                <span class="input-group-text bg-white small text-muted">To</span>
+                                <input type="date" class="form-control" name="date_to" value="{{ date_to }}">
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-action">
+                                <i class="fas fa-filter me-1"></i> Apply Filters
+                            </button>
+                            {% if search or course or email_status or date_from or date_to %}
+                                <a href="{% url 'college_dashboard' %}" class="btn btn-outline-secondary btn-action" title="Clear Filters">
+                                    <i class="fas fa-undo me-1"></i> Reset
+                                </a>
+                            {% endif %}
+                            <span class="text-muted small ms-2">
+                                Found <strong>{{ filtered_count }}</strong> matching record{{ filtered_count|pluralize }}.
+                            </span>
+                        </div>
+
+                        <!-- Bulk Export Actions -->
+                        <div class="d-flex gap-2 flex-wrap">
+                            <!-- Download Selected ZIP (POST form triggered via JS) -->
+                            <button type="button" class="btn btn-outline-primary btn-action" id="btnDownloadSelected" disabled>
+                                <i class="fas fa-file-archive me-1"></i> Download Selected (<span id="selectedCount">0</span>)
+                            </button>
+
+                            <!-- Download All Filtered ZIP -->
+                            <a href="{% url 'college_download_filtered_zip' %}?{{ request.GET.urlencode }}" class="btn btn-primary btn-action">
+                                <i class="fas fa-file-zipper me-1"></i> Download Filtered (ZIP)
+                            </a>
+
+                            <!-- Excel Export -->
+                            <a href="{% url 'college_export_excel' %}?{{ request.GET.urlencode }}" class="btn btn-success btn-action">
+                                <i class="fas fa-file-excel me-1"></i> Export Excel
+                            </a>
+
+                            <!-- CSV Export -->
+                            <a href="{% url 'college_export_csv' %}?{{ request.GET.urlencode }}" class="btn btn-outline-secondary btn-action">
+                                <i class="fas fa-file-csv me-1"></i> Export CSV
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Offer Letter Repository Table -->
+            <form id="bulkForm" method="post" action="{% url 'college_download_selected_zip' %}">
+                {% csrf_token %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3" style="width: 40px;">
+                                    <input type="checkbox" class="form-check-input" id="selectAll">
+                                </th>
+                                <th>#</th>
+                                <th>Student Name</th>
+                                <th>Roll Number</th>
+                                <th>Course / Specialization</th>
+                                <th>Offer Letter ID</th>
+                                <th>Issue Date</th>
+                                <th class="text-center">Email Status</th>
+                                <th class="text-end pe-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cert in page_obj %}
+                            <tr>
+                                <td class="ps-3">
+                                    <input type="checkbox" name="selected_ids" value="{{ cert.id }}" class="form-check-input row-checkbox">
+                                </td>
+                                <td class="text-muted small">
+                                    {{ forloop.counter0|add:page_obj.start_index }}
+                                </td>
+                                <td>
+                                    <div class="fw-semibold text-dark">{{ cert.full_name }}</div>
+                                    <div class="text-muted small">{{ cert.email }}</div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border font-monospace">
+                                        {{ cert.roll_number }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="small fw-medium">{{ cert.internship_title|default:cert.course }}</div>
+                                    <div class="text-muted" style="font-size: 0.72rem;">{{ cert.internship_duration|default:"2 Months" }}</div>
+                                </td>
+                                <td>
+                                    <span class="font-monospace small text-muted">
+                                        {{ cert.certificate_id|default:"Pending" }}
+                                    </span>
+                                </td>
+                                <td class="small text-muted">
+                                    {% if cert.issue_date %}
+                                        {{ cert.issue_date|date:"d M Y" }}
+                                    {% else %}
+                                        {{ cert.created_at|date:"d M Y" }}
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if cert.email_sent %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle badge-status">
+                                            <i class="fas fa-check-circle me-1"></i> Delivered
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary border badge-status">
+                                            <i class="fas fa-clock me-1"></i> Pending
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-3">
+                                    <div class="btn-group btn-group-sm">
+                                        <!-- View Details Trigger -->
+                                        <button type="button" class="btn btn-outline-secondary btn-view-detail" data-id="{{ cert.id }}" title="View Full Details">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+
+                                        <!-- Download PDF -->
+                                        <a href="{% url 'college_download_pdf' cert.id %}" class="btn btn-outline-primary" title="Download Official PDF">
+                                            <i class="fas fa-file-pdf"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center py-5 text-muted">
+                                    <i class="fas fa-folder-open fa-3x mb-3 text-secondary opacity-50 d-block"></i>
+                                    <h5>No offer letters found</h5>
+                                    <p class="small mb-0">No records match the selected filters or search criteria for {{ college.name }}.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </form>
+
+            <!-- Pagination Bar -->
+            {% if page_obj.has_other_pages %}
+            <div class="p-3 border-top bg-white rounded-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="small text-muted">
+                    Showing <strong>{{ page_obj.start_index }}</strong> to <strong>{{ page_obj.end_index }}</strong> of <strong>{{ page_obj.paginator.count }}</strong> offer letters
+                </div>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if course %}&course={{ course }}{% endif %}{% if email_status %}&email_status={{ email_status }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+
+                        <li class="page-item disabled">
+                            <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                        </li>
+
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if course %}&course={{ course }}{% endif %}{% if email_status %}&email_status={{ email_status }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <!-- Detail Modal -->
+    <div class="modal fade" id="detailModal" tabindex="-1" aria-labelledby="detailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="detailModalLabel">
+                        <i class="fas fa-id-card me-2"></i>Offer Letter Details
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4" id="detailModalBody">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="text-muted small mt-2">Loading record securely...</p>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                    <a href="#" id="modalDownloadPdfBtn" class="btn btn-primary btn-sm">
+                        <i class="fas fa-file-pdf me-1"></i> Download PDF
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Institution Info Modal -->
+    <div class="modal fade" id="collegeInfoModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title text-dark">
+                        <i class="fas fa-university text-primary me-2"></i>{{ college.name }}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <td class="text-muted fw-semibold" style="width: 140px;">Institution Code:</td>
+                            <td class="fw-bold">{{ college.code|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted fw-semibold">Campus Address:</td>
+                            <td>{{ college.address|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted fw-semibold">Total Offers:</td>
+                            <td><span class="badge bg-primary">{{ stats.total_offer_letters }}</span></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted fw-semibold">Tenant Status:</td>
+                            <td><span class="badge bg-success">Active &bull; Verified Tenant</span></td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <form method="post" action="{% url 'college_change_password' %}">
+                    {% csrf_token %}
+                    <div class="modal-header bg-light">
+                        <h5 class="modal-title text-dark">
+                            <i class="fas fa-key text-primary me-2"></i>Change Administrator Password
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Current Password</label>
+                            <input type="password" name="current_password" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">New Password</label>
+                            <input type="password" name="new_password" class="form-control" required minlength="6" placeholder="Min. 6 characters">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold">Confirm New Password</label>
+                            <input type="password" name="confirm_password" class="form-control" required minlength="6">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm fw-semibold">Update Password</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectAll = document.getElementById('selectAll');
+            const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+            const btnDownloadSelected = document.getElementById('btnDownloadSelected');
+            const selectedCount = document.getElementById('selectedCount');
+            const bulkForm = document.getElementById('bulkForm');
+
+            function updateSelectedCount() {
+                const checked = document.querySelectorAll('.row-checkbox:checked');
+                const count = checked.length;
+                selectedCount.textContent = count;
+                btnDownloadSelected.disabled = (count === 0);
+            }
+
+            if (selectAll) {
+                selectAll.addEventListener('change', function() {
+                    rowCheckboxes.forEach(cb => cb.checked = selectAll.checked);
+                    updateSelectedCount();
+                });
+            }
+
+            rowCheckboxes.forEach(cb => {
+                cb.addEventListener('change', function() {
+                    updateSelectedCount();
+                    if (!this.checked && selectAll) {
+                        selectAll.checked = false;
+                    }
+                });
+            });
+
+            if (btnDownloadSelected && bulkForm) {
+                btnDownloadSelected.addEventListener('click', function() {
+                    bulkForm.submit();
+                });
+            }
+
+            // Detail Modal AJAX loading
+            const detailModalEl = document.getElementById('detailModal');
+            const detailModal = new bootstrap.Modal(detailModalEl);
+            const detailBody = document.getElementById('detailModalBody');
+            const modalDownloadPdfBtn = document.getElementById('modalDownloadPdfBtn');
+
+            document.querySelectorAll('.btn-view-detail').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const certId = this.getAttribute('data-id');
+                    detailBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="text-muted small mt-2">Loading details...</p></div>';
+                    detailModal.show();
+
+                    fetch(`/college/offer-letter/${certId}/detail/`)
+                        .then(res => {
+                            if (!res.ok) throw new Error("Unauthorized or not found");
+                            return res.json();
+                        })
+                        .then(data => {
+                            modalDownloadPdfBtn.href = data.download_pdf_url;
+                            detailBody.innerHTML = `
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="p-3 bg-light rounded-3">
+                                            <div class="text-muted small text-uppercase fw-semibold mb-1">Candidate Details</div>
+                                            <h5 class="fw-bold mb-1 text-dark">${data.full_name}</h5>
+                                            <div class="small text-muted mb-1"><i class="fas fa-id-badge me-1"></i> Roll Number: <strong>${data.roll_number}</strong></div>
+                                            <div class="small text-muted mb-1"><i class="fas fa-envelope me-1"></i> ${data.email}</div>
+                                            <div class="small text-muted"><i class="fas fa-phone me-1"></i> ${data.candidate_mobile}</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="p-3 bg-light rounded-3">
+                                            <div class="text-muted small text-uppercase fw-semibold mb-1">Internship Information</div>
+                                            <h6 class="fw-bold mb-1 text-primary">${data.internship_title}</h6>
+                                            <div class="small text-muted mb-1"><i class="fas fa-clock me-1"></i> Duration: ${data.internship_duration}</div>
+                                            <div class="small text-muted mb-1"><i class="fas fa-calendar-alt me-1"></i> Period: ${data.start_date} to ${data.end_date}</div>
+                                            <div class="small text-muted"><i class="fas fa-coins me-1"></i> Stipend: <strong>${data.stipend_amount}</strong></div>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="p-3 border rounded-3">
+                                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                                <div>
+                                                    <div class="small text-muted">Offer Letter / Verification ID</div>
+                                                    <div class="font-monospace fw-bold">${data.certificate_id}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="small text-muted">Issue Date</div>
+                                                    <div class="fw-semibold">${data.issue_date}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="small text-muted">Email Notification</div>
+                                                    <div>${data.email_sent ? '<span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-check-circle me-1"></i> Delivered</span>' : '<span class="badge bg-secondary-subtle text-secondary border">Pending</span>'}</div>
+                                                </div>
+                                            </div>
+                                            ${data.verification_url ? `
+                                            <div class="mt-3 pt-3 border-top small">
+                                                <i class="fas fa-shield-alt text-primary me-1"></i> Public Verification Link:
+                                                <a href="${data.verification_url}" target="_blank" class="font-monospace">${data.verification_url}</a>
+                                            </div>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        })
+                        .catch(err => {
+                            detailBody.innerHTML = `<div class="alert alert-danger mb-0"><i class="fas fa-exclamation-triangle me-1"></i> Failed to load offer letter details: ${err.message}</div>`;
+                        });
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+

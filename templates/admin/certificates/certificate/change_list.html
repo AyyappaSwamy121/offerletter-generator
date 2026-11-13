@@ -1,0 +1,10 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls %}
+{% block object-tools-items %}
+  <li>
+     <a href="/admin/certificates/certificate/remove-duplicates-view/" class="remove-duplicates-btn" style="background: linear-gradient(135deg, #d9534f, #c9302c); color: #fff; font-weight: bold; border-radius: 4px; padding: 10px 15px; display: inline-block; text-decoration: none; margin-right: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); transition: all 0.2s ease;">
+      <i class="fas fa-trash-alt" style="margin-right: 5px;"></i> Remove Duplicates
+    </a>
+  </li>
+  {{ block.super }}
+{% endblock %}

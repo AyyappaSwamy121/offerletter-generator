@@ -1,0 +1,288 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}College Administrator Management - CertGen{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-1 text-dark">
+                <i class="fas fa-university text-primary me-2"></i>College Admin Management
+            </h2>
+            <p class="text-muted mb-0">Manage multi-tenant institutional administrator accounts and role-based assignments.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'college_admin_create' %}" class="btn btn-primary shadow-sm">
+                <i class="fas fa-user-plus me-1"></i> Add College Admin
+            </a>
+            <a href="{% url 'audit_log_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-history me-1"></i> Audit Logs
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-sm-6">
+            <div class="card h-100 border-0 shadow-sm" style="border-left: 4px solid #2563eb !important;">
+                <div class="card-body py-3">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">Total College Admins</div>
+                    <div class="h3 fw-bold text-dark mb-0">{{ stats.total_admins }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card h-100 border-0 shadow-sm" style="border-left: 4px solid #10b981 !important;">
+                <div class="card-body py-3">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">Active Accounts</div>
+                    <div class="h3 fw-bold text-success mb-0">{{ stats.active_admins }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card h-100 border-0 shadow-sm" style="border-left: 4px solid #ef4444 !important;">
+                <div class="card-body py-3">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">Deactivated Accounts</div>
+                    <div class="h3 fw-bold text-danger mb-0">{{ stats.inactive_admins }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card h-100 border-0 shadow-sm" style="border-left: 4px solid #8b5cf6 !important;">
+                <div class="card-body py-3">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">Active Colleges</div>
+                    <div class="h3 fw-bold text-primary mb-0">{{ stats.total_colleges }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Card -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-3">
+            <form method="get" class="row g-2 align-items-center">
+                <div class="col-md-4 col-sm-12">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="fas fa-search"></i></span>
+                        <input type="text" class="form-control border-start-0 ps-0" name="search" value="{{ search_query }}" placeholder="Search by name, email, college...">
+                    </div>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <select name="college" class="form-select">
+                        <option value="">All Colleges / Institutions</option>
+                        {% for col in colleges %}
+                            <option value="{{ col.id }}" {% if college_filter == col.id|stringformat:"s" %}selected{% endif %}>{{ col.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 col-sm-6">
+                    <select name="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Only</option>
+                        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Deactivated Only</option>
+                    </select>
+                </div>
+                <div class="col-md-2 col-sm-12 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter me-1"></i> Filter
+                    </button>
+                    {% if search_query or college_filter or status_filter %}
+                        <a href="{% url 'college_admin_list' %}" class="btn btn-outline-secondary" title="Reset Filters">
+                            <i class="fas fa-undo"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Management Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3 py-3">Administrator</th>
+                            <th>Email Address</th>
+                            <th>Assigned College</th>
+                            <th class="text-center">Account Status</th>
+                            <th>Created Date</th>
+                            <th>Last Login</th>
+                            <th class="text-end pe-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for profile in profiles %}
+                        <tr>
+                            <td class="ps-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2 fw-bold" style="width: 36px; height: 36px; font-size: 0.85rem;">
+                                        {{ profile.full_name|make_list|first|upper }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold text-dark">{{ profile.full_name }}</div>
+                                        <div class="text-muted small">Username: {{ profile.user.username }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <a href="mailto:{{ profile.user.email }}" class="text-decoration-none">
+                                    {{ profile.user.email|default:"(No email set)" }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border px-2 py-1">
+                                    <i class="fas fa-university text-primary me-1"></i>{{ profile.college.name }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                {% if profile.is_active and profile.user.is_active %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                        <i class="fas fa-check-circle me-1"></i>Active
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                                        <i class="fas fa-ban me-1"></i>Deactivated
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="small text-muted">
+                                {{ profile.created_at|date:"d M Y" }}
+                            </td>
+                            <td class="small text-muted">
+                                {% if profile.user.last_login %}
+                                    {{ profile.user.last_login|date:"d M Y, H:i" }}
+                                {% else %}
+                                    <span class="text-secondary fst-italic">Never</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-3">
+                                <div class="btn-group btn-group-sm">
+                                    <!-- Edit -->
+                                    <a href="{% url 'college_admin_edit' profile.id %}" class="btn btn-outline-primary" title="Edit Admin">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+
+                                    <!-- Reset Password Trigger -->
+                                    <button type="button" 
+                                            class="btn btn-outline-warning btn-reset-password" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#resetPasswordModal"
+                                            data-action-url="{% url 'college_admin_reset_password' profile.id %}"
+                                            data-admin-name="{{ profile.full_name }}"
+                                            data-admin-email="{{ profile.user.email|default:profile.user.username }}"
+                                            data-college-name="{{ profile.college.name }}"
+                                            title="Reset Password">
+                                        <i class="fas fa-key"></i>
+                                    </button>
+
+                                    <!-- Activate / Deactivate Toggle -->
+                                    <form method="post" action="{% url 'college_admin_toggle_status' profile.id %}" class="d-inline" onsubmit="return confirm('Are you sure you want to {% if profile.is_active %}deactivate{% else %}activate{% endif %} this administrator account?');">
+                                        {% csrf_token %}
+                                        {% if profile.is_active and profile.user.is_active %}
+                                            <button type="submit" class="btn btn-outline-danger" title="Deactivate Account">
+                                                <i class="fas fa-user-slash"></i>
+                                            </button>
+                                        {% else %}
+                                            <button type="submit" class="btn btn-outline-success" title="Activate Account">
+                                                <i class="fas fa-user-check"></i>
+                                            </button>
+                                        {% endif %}
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <i class="fas fa-user-shield fa-3x mb-3 text-secondary opacity-50 d-block"></i>
+                                <h5>No college administrators found</h5>
+                                <p class="small mb-3">No accounts match the selected filters or search query.</p>
+                                <a href="{% url 'college_admin_create' %}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-plus me-1"></i> Add New College Administrator
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reusable Reset Password Modal (Placed outside table to prevent z-index and overflow flickering) -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-labelledby="resetPasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="post" id="resetPasswordForm" action="">
+                {% csrf_token %}
+                <div class="modal-header bg-warning-subtle">
+                    <h5 class="modal-title text-dark fw-bold" id="resetPasswordModalLabel">
+                        <i class="fas fa-key me-2 text-warning"></i>Reset Password
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="small text-muted mb-3">
+                        Enter a new password for <strong id="resetModalAdminName" class="text-dark"></strong> (<span id="resetModalCollege"></span>).
+                    </p>
+                    <div class="alert alert-light border small py-2 mb-3">
+                        <i class="fas fa-user text-muted me-1"></i> Account: <span id="resetModalEmail" class="fw-semibold font-monospace"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">New Password</label>
+                        <input type="password" name="new_password" class="form-control" placeholder="Min. 6 characters" required minlength="6" autocomplete="new-password">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold">Confirm New Password</label>
+                        <input type="password" name="confirm_password" class="form-control" placeholder="Repeat new password" required minlength="6" autocomplete="new-password">
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning btn-sm fw-semibold">Save New Password</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const resetModalEl = document.getElementById('resetPasswordModal');
+    if (resetModalEl) {
+        resetModalEl.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            if (!button) return;
+
+            const actionUrl = button.getAttribute('data-action-url');
+            const adminName = button.getAttribute('data-admin-name');
+            const adminEmail = button.getAttribute('data-admin-email');
+            const collegeName = button.getAttribute('data-college-name');
+
+            const form = resetModalEl.querySelector('#resetPasswordForm');
+            if (form && actionUrl) {
+                form.action = actionUrl;
+                form.reset();
+            }
+
+            const nameEl = resetModalEl.querySelector('#resetModalAdminName');
+            const emailEl = resetModalEl.querySelector('#resetModalEmail');
+            const collegeEl = resetModalEl.querySelector('#resetModalCollege');
+
+            if (nameEl) nameEl.textContent = adminName || '';
+            if (emailEl) emailEl.textContent = adminEmail || '';
+            if (collegeEl) collegeEl.textContent = collegeName || '';
+        });
+    }
+});
+</script>
+{% endblock %}
+

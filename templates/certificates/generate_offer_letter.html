@@ -1,0 +1,366 @@
+{% extends 'base.html' %}
+
+{% block title %}Generate Offer Letter - Offer Letter Generation System{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="text-center mb-5">
+                <h1 class="display-5 fw-bold text-primary mb-3">
+                    <i class="fas fa-file-contract me-3"></i>
+                    Generate Internship Offer Letter
+                </h1>
+                <p class="lead text-muted">
+                    Fill in the details below to generate a professional internship offer letter
+                </p>
+            </div>
+
+            <!-- Form Card -->
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-primary text-white py-3">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-user-tie me-2"></i>
+                        Candidate Information
+                    </h4>
+                </div>
+
+                <div class="card-body p-4">
+                    <form method="post" id="offerLetterForm">
+                        {% csrf_token %}
+
+                        <div class="row g-4">
+                            <!-- Candidate Name -->
+                            <div class="col-md-6">
+                                <label for="{{ form.candidate_name.id_for_label }}" class="form-label fw-semibold">
+                                    <i class="fas fa-user me-2 text-primary"></i>
+                                    Candidate Name *
+                                </label>
+                                {{ form.candidate_name }}
+                                {% if form.candidate_name.help_text %}
+                                <div class="form-text">{{ form.candidate_name.help_text }}</div>
+                                {% endif %}
+                                {% if form.candidate_name.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.candidate_name.errors %}
+                                    <small><i class="fas fa-exclamation-circle me-1"></i>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Position -->
+                            <div class="col-md-6">
+                                <label for="{{ form.position.id_for_label }}" class="form-label fw-semibold">
+                                    <i class="fas fa-briefcase me-2 text-primary"></i>
+                                    Position/Title *
+                                </label>
+                                {{ form.position }}
+                                {% if form.position.help_text %}
+                                <div class="form-text">{{ form.position.help_text }}</div>
+                                {% endif %}
+                                {% if form.position.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.position.errors %}
+                                    <small><i class="fas fa-exclamation-circle me-1"></i>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Company Name -->
+                            <div class="col-md-6">
+                                <label for="{{ form.company_name.id_for_label }}" class="form-label fw-semibold">
+                                    <i class="fas fa-building me-2 text-primary"></i>
+                                    Company/Organization Name *
+                                </label>
+                                {{ form.company_name }}
+                                {% if form.company_name.help_text %}
+                                <div class="form-text">{{ form.company_name.help_text }}</div>
+                                {% endif %}
+                                {% if form.company_name.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.company_name.errors %}
+                                    <small><i class="fas fa-exclamation-circle me-1"></i>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Email -->
+                            <div class="col-md-6">
+                                <label for="{{ form.email.id_for_label }}" class="form-label fw-semibold">
+                                    <i class="fas fa-envelope me-2 text-primary"></i>
+                                    Email Address *
+                                </label>
+                                {{ form.email }}
+                                {% if form.email.help_text %}
+                                <div class="form-text">{{ form.email.help_text }}</div>
+                                {% endif %}
+                                {% if form.email.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.email.errors %}
+                                    <small><i class="fas fa-exclamation-circle me-1"></i>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Start Date -->
+                            <div class="col-md-6">
+                                <label for="{{ form.internship_start_date.id_for_label }}"
+                                    class="form-label fw-semibold">
+                                    <i class="fas fa-calendar-alt me-2 text-primary"></i>
+                                    Start Date
+                                </label>
+                                {{ form.internship_start_date }}
+                                {% if form.internship_start_date.help_text %}
+                                <div class="form-text">{{ form.internship_start_date.help_text }}</div>
+                                {% endif %}
+                                {% if form.internship_start_date.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.internship_start_date.errors %}
+                                    <small><i class="fas fa-exclamation-circle me-1"></i>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- End Date -->
+                            <div class="col-md-6">
+                                <label for="{{ form.internship_end_date.id_for_label }}" class="form-label fw-semibold">
+                                    <i class="fas fa-calendar-check me-2 text-primary"></i>
+                                    End Date
+                                </label>
+                                {{ form.internship_end_date }}
+                                {% if form.internship_end_date.help_text %}
+                                <div class="form-text">{{ form.internship_end_date.help_text }}</div>
+                                {% endif %}
+                                {% if form.internship_end_date.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.internship_end_date.errors %}
+                                    <small><i class="fas fa-exclamation-circle me-1"></i>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Stipend -->
+                            <div class="col-md-6">
+                                <label for="{{ form.stipend.id_for_label }}" class="form-label fw-semibold">
+                                    <i class="fas fa-money-bill-wave me-2 text-primary"></i>
+                                    Stipend (Optional)
+                                </label>
+                                {{ form.stipend }}
+                                {% if form.stipend.help_text %}
+                                <div class="form-text">{{ form.stipend.help_text }}</div>
+                                {% endif %}
+                                {% if form.stipend.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.stipend.errors %}
+                                    <small><i class="fas fa-exclamation-circle me-1"></i>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Location -->
+                            <div class="col-md-6">
+                                <label for="{{ form.location.id_for_label }}" class="form-label fw-semibold">
+                                    <i class="fas fa-map-marker-alt me-2 text-primary"></i>
+                                    Location (Optional)
+                                </label>
+                                {{ form.location }}
+                                {% if form.location.help_text %}
+                                <div class="form-text">{{ form.location.help_text }}</div>
+                                {% endif %}
+                                {% if form.location.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.location.errors %}
+                                    <small><i class="fas fa-exclamation-circle me-1"></i>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Terms and Conditions -->
+                        <div class="mt-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="termsCheck" required>
+                                <label class="form-check-label" for="termsCheck">
+                                    I agree that the information provided is accurate and I consent to the generation
+                                    and distribution of this offer letter.
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <span class="btn-text">
+                                    <i class="fas fa-magic me-2"></i>
+                                    Generate Offer Letter
+                                </span>
+                                <span class="loading-spinner">
+                                    <i class="fas fa-spinner fa-spin me-2"></i>
+                                    Generating...
+                                </span>
+                            </button>
+                        </div>
+
+                        <!-- Help Text -->
+                        <div class="mt-3 text-center">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Your offer letter will be generated instantly and sent to the candidate's email address.
+                            </small>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Features Info -->
+            <div class="row g-4 mt-4">
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                            style="width: 50px; height: 50px;">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <h6 class="fw-semibold">Instant Generation</h6>
+                        <small class="text-muted">Your offer letter will be ready in seconds</small>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <div class="bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                            style="width: 50px; height: 50px;">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <h6 class="fw-semibold">Secure & Verified</h6>
+                        <small class="text-muted">Each offer letter includes unique verification</small>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <div class="bg-info text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                            style="width: 50px; height: 50px;">
+                            <i class="fas fa-download"></i>
+                        </div>
+                        <h6 class="fw-semibold">Multiple Formats</h6>
+                        <small class="text-muted">Download as PNG or PDF</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('offerLetterForm');
+        const termsCheck = document.getElementById('termsCheck');
+        const submitBtn = form.querySelector('button[type="submit"]');
+
+        // Enable/disable submit button based on terms checkbox
+        function updateSubmitButton() {
+            submitBtn.disabled = !termsCheck.checked;
+        }
+
+        termsCheck.addEventListener('change', updateSubmitButton);
+        updateSubmitButton(); // Initial check
+
+        // Form validation
+        form.addEventListener('submit', function (e) {
+            if (!termsCheck.checked) {
+                e.preventDefault();
+                alert('Please accept the terms and conditions to continue.');
+                return false;
+            }
+
+            // Additional client-side validation can be added here
+            const requiredFields = form.querySelectorAll('input[required], select[required], textarea[required]');
+            let isValid = true;
+
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    isValid = false;
+                    field.classList.add('is-invalid');
+                } else {
+                    field.classList.remove('is-invalid');
+                }
+            });
+
+            if (!isValid) {
+                e.preventDefault();
+                alert('Please fill in all required fields.');
+                return false;
+            }
+        });
+
+        // Real-time validation
+        const inputs = form.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.addEventListener('blur', function () {
+                if (this.hasAttribute('required') && !this.value.trim()) {
+                    this.classList.add('is-invalid');
+                } else {
+                    this.classList.remove('is-invalid');
+                }
+            });
+
+            input.addEventListener('input', function () {
+                if (this.classList.contains('is-invalid') && this.value.trim()) {
+                    this.classList.remove('is-invalid');
+                }
+            });
+        });
+        // Date validation and automatic end date calculation
+        const startDateInput = document.getElementById('id_internship_start_date');
+        const endDateInput = document.getElementById('id_internship_end_date');
+        const durationSelect = document.getElementById('id_internship_duration');
+
+        function updateEndDate() {
+            if (startDateInput && startDateInput.value && durationSelect && durationSelect.value) {
+                const startDate = new Date(startDateInput.value);
+                const durationMatch = durationSelect.value.match(/\d+/);
+                const months = durationMatch ? parseInt(durationMatch[0]) : 0;
+
+                if (months > 0) {
+                    const endDate = new Date(startDate);
+                    endDate.setMonth(startDate.getMonth() + months);
+
+                    // Format to YYYY-MM-DD
+                    const year = endDate.getFullYear();
+                    const month = String(endDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(endDate.getDate()).padStart(2, '0');
+
+                    if (endDateInput) {
+                        endDateInput.value = `${year}-${month}-${day}`;
+                    }
+                }
+            }
+        }
+
+        if (startDateInput && endDateInput) {
+            startDateInput.addEventListener('change', updateEndDate);
+            if (durationSelect) durationSelect.addEventListener('change', updateEndDate);
+
+            endDateInput.addEventListener('change', function () {
+                if (startDateInput.value && endDateInput.value) {
+                    if (new Date(endDateInput.value) < new Date(startDateInput.value)) {
+                        alert('End date must be after start date.');
+                        updateEndDate();
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
