@@ -16,12 +16,36 @@ from .decorators import college_admin_required
 from .utils import generate_offer_letter_pdf
 
 
-def _get_filtered_college_queryset(request, college):
+def _get_target_colleges(request, profile):
     """
-    Helper function to filter the college's offer letters securely.
-    Ensures that ONLY records belonging to this college can ever be returned.
+    Determine the authorized colleges for the current request.
+    If 'college_id' or 'college' is provided in GET parameters and belongs to the
+    administrator's assigned colleges, return only that college (for filtering).
+    Otherwise, return all active colleges assigned to the administrator.
     """
-    qs = Certificate.objects.filter(college=college, is_deleted=False).order_by('-created_at')
+    assigned_colleges = profile.get_colleges()
+    college_param = request.GET.get('college_id', '').strip() or request.GET.get('college', '').strip()
+
+    if college_param:
+        target = assigned_colleges.filter(pk=college_param)
+        if target.exists():
+            return target
+    return assigned_colleges
+
+
+def _get_filtered_college_queryset(request, profile, target_colleges=None):
+    """
+    Helper function to filter offer letters securely.
+    Ensures that ONLY records belonging to the administrator's authorized assigned colleges
+    can ever be returned, regardless of client-supplied parameters.
+    """
+    if target_colleges is None:
+        target_colleges = _get_target_colleges(request, profile)
+
+    qs = Certificate.objects.filter(
+        college__in=target_colleges,
+        is_deleted=False
+    ).select_related('college').distinct().order_by('-created_at')
 
     # Search query
     search_query = request.GET.get('search', '').strip()
@@ -32,7 +56,9 @@ def _get_filtered_college_queryset(request, college):
             Q(email__icontains=search_query) |
             Q(certificate_id__icontains=search_query) |
             Q(course__icontains=search_query) |
-            Q(internship_title__icontains=search_query)
+            Q(internship_title__icontains=search_query) |
+            Q(college_name__icontains=search_query) |
+            Q(college__name__icontains=search_query)
         )
 
     # Course / Specialization filter
@@ -71,13 +97,22 @@ def _get_filtered_college_queryset(request, college):
 def college_dashboard(request):
     """
     Dedicated SaaS dashboard for College Administrators.
-    Strictly isolated: displays only the authenticated administrator's college data.
+    Strictly isolated: displays only the authenticated administrator's assigned colleges.
+    Supports viewing all assigned colleges simultaneously or filtering by a specific assigned college.
     """
     profile = request.user.college_profile
-    college = profile.college
+    assigned_colleges = profile.get_colleges().order_by('name')
 
-    # Base query for stats (all active certificates of this college)
-    base_qs = Certificate.objects.filter(college=college, is_deleted=False)
+    # Selected specific college filter (if any)
+    college_param = request.GET.get('college_id', '').strip() or request.GET.get('college', '').strip()
+    selected_college = None
+    if college_param:
+        selected_college = assigned_colleges.filter(pk=college_param).first()
+
+    target_colleges = assigned_colleges.filter(pk=selected_college.id) if selected_college else assigned_colleges
+
+    # Base query for stats (all active certificates of the target colleges)
+    base_qs = Certificate.objects.filter(college__in=target_colleges, is_deleted=False)
     now = timezone.now()
 
     # Real database statistics
@@ -100,7 +135,7 @@ def college_dashboard(request):
         )
 
     # Filtered queryset for the table
-    filtered_qs = _get_filtered_college_queryset(request, college)
+    filtered_qs = _get_filtered_college_queryset(request, profile, target_colleges)
     filtered_count = filtered_qs.count()
 
     # Pagination: 25 items per page
@@ -108,9 +143,19 @@ def college_dashboard(request):
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
 
+    # Page title
+    if selected_college:
+        page_title = f"{selected_college.name} - Offer Letter Dashboard"
+    elif assigned_colleges.count() == 1:
+        page_title = f"{assigned_colleges.first().name} - Offer Letter Dashboard"
+    else:
+        page_title = "Multi-College Offer Letter Dashboard"
+
     context = {
         'profile': profile,
-        'college': college,
+        'assigned_colleges': assigned_colleges,
+        'selected_college': selected_college,
+        'selected_college_id': str(selected_college.id) if selected_college else '',
         'stats': stats,
         'courses': courses,
         'page_obj': page_obj,
@@ -121,7 +166,7 @@ def college_dashboard(request):
         'email_status': request.GET.get('email_status', ''),
         'date_from': request.GET.get('date_from', ''),
         'date_to': request.GET.get('date_to', ''),
-        'page_title': f"{college.name} - Offer Letter Dashboard",
+        'page_title': page_title,
     }
     return render(request, 'certificates/college_dashboard.html', context)
 
@@ -130,10 +175,13 @@ def college_dashboard(request):
 def college_offer_letter_detail_api(request, pk):
     """
     JSON endpoint for viewing details of a specific offer letter.
-    Server-side enforced: returns 404 if the record does not belong to the user's college.
+    Server-side enforced: returns 404 if the record does not belong to ANY of the user's assigned colleges.
     """
-    college = request.user.college_profile.college
-    cert = get_object_or_404(Certificate, pk=pk, college=college, is_deleted=False)
+    assigned_colleges = request.user.college_profile.get_colleges()
+    cert = get_object_or_404(Certificate, pk=pk, college__in=assigned_colleges, is_deleted=False)
+
+    college = cert.college
+    college_name = college.name if college else (cert.college_name or 'N/A')
 
     data = {
         'id': cert.id,
@@ -141,7 +189,7 @@ def college_offer_letter_detail_api(request, pk):
         'roll_number': cert.roll_number,
         'email': cert.email,
         'candidate_mobile': cert.candidate_mobile or 'N/A',
-        'college_name': cert.college_name,
+        'college_name': college_name,
         'course': cert.course or cert.internship_title or 'N/A',
         'internship_title': cert.internship_title or cert.course or 'N/A',
         'internship_duration': cert.internship_duration or '2 Months',
@@ -164,10 +212,11 @@ def college_offer_letter_detail_api(request, pk):
 def college_download_pdf(request, pk):
     """
     Download individual offer letter PDF.
-    Enforces strict ownership: college administrator can only download their own college's documents.
+    Enforces strict ownership: college administrator can only download documents from their assigned colleges.
     """
-    college = request.user.college_profile.college
-    cert = get_object_or_404(Certificate, pk=pk, college=college, is_deleted=False)
+    assigned_colleges = request.user.college_profile.get_colleges()
+    cert = get_object_or_404(Certificate, pk=pk, college__in=assigned_colleges, is_deleted=False)
+    college = cert.college
 
     pdf_bytes = None
     # 1. Try reading existing PDF file from disk
@@ -178,15 +227,15 @@ def college_download_pdf(request, pk):
         except Exception:
             pdf_bytes = None
 
-    # 2. If missing on disk, generate PDF dynamically
+    # 2. Dynamic generation fallback
     if not pdf_bytes:
         try:
             offer_letter_data = {
                 'candidate_name': cert.full_name,
                 'roll_number': cert.roll_number,
                 'course_name': cert.course or cert.internship_title,
-                'institution_name': cert.college_name,
-                'institution_address': cert.institution_address or getattr(college, 'address', ''),
+                'institution_name': cert.college_name or (college.name if college else ''),
+                'institution_address': cert.institution_address or (getattr(college, 'address', '') if college else ''),
                 'candidate_mobile': cert.candidate_mobile,
                 'candidate_email': cert.email,
                 'internship_title': cert.internship_title or cert.course,
@@ -196,7 +245,7 @@ def college_download_pdf(request, pk):
             buf = generate_offer_letter_pdf(offer_letter_data)
             if buf:
                 pdf_bytes = buf.getvalue()
-        except Exception as e:
+        except Exception:
             pass
 
     if not pdf_bytes:
@@ -220,21 +269,21 @@ def college_download_pdf(request, pk):
 def college_download_selected_zip(request):
     """
     Download a ZIP archive containing PDFs for selected records (via checkboxes).
-    Enforces strict ownership: filters out any IDs that do not belong to the user's college.
+    Enforces strict ownership: filters out any IDs that do not belong to the user's assigned colleges.
     """
-    college = request.user.college_profile.college
+    assigned_colleges = request.user.college_profile.get_colleges()
     selected_ids = request.POST.getlist('selected_ids')
 
     if not selected_ids:
         messages.error(request, "No offer letters were selected for download.")
         return redirect('college_dashboard')
 
-    # Security: Query only records that match selected_ids AND belong to THIS college
+    # Security: Query only records that match selected_ids AND belong to THIS user's assigned colleges
     certs = Certificate.objects.filter(
         pk__in=selected_ids,
-        college=college,
+        college__in=assigned_colleges,
         is_deleted=False
-    )
+    ).select_related('college')
 
     if not certs.exists():
         messages.error(request, "None of the selected offer letters were found or authorized.")
@@ -258,12 +307,13 @@ def college_download_selected_zip(request):
             # Dynamic fallback generation if PDF file is missing
             if not pdf_bytes:
                 try:
+                    c_obj = cert.college
                     offer_letter_data = {
                         'candidate_name': cert.full_name,
                         'roll_number': cert.roll_number,
                         'course_name': cert.course or cert.internship_title,
-                        'institution_name': cert.college_name,
-                        'institution_address': cert.institution_address or getattr(college, 'address', ''),
+                        'institution_name': cert.college_name or (c_obj.name if c_obj else ''),
+                        'institution_address': cert.institution_address or (getattr(c_obj, 'address', '') if c_obj else ''),
                         'candidate_mobile': cert.candidate_mobile,
                         'candidate_email': cert.email,
                         'internship_title': cert.internship_title or cert.course,
@@ -289,14 +339,15 @@ def college_download_selected_zip(request):
 
     zip_buffer.seek(0)
 
+    first_col = assigned_colleges.first()
     AuditLog.log(
         request,
         'BULK_DOWNLOAD_SELECTED',
-        f"Downloaded selected ZIP with {added_files} offer letters",
-        college=college
+        f"Downloaded selected ZIP with {added_files} offer letters across {assigned_colleges.count()} college(s)",
+        college=first_col
     )
 
-    clean_college = college.code or college.name.replace(' ', '_')
+    clean_college = "Multi_College" if assigned_colleges.count() > 1 else (first_col.code or first_col.name.replace(' ', '_'))
     timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
     filename = f"{clean_college}_Selected_Offer_Letters_{timestamp}.zip"
 
@@ -309,10 +360,11 @@ def college_download_selected_zip(request):
 def college_download_filtered_zip(request):
     """
     Download a ZIP archive containing all offer letter PDFs matching the currently applied filters.
-    Strictly constrained to the user's assigned college.
+    Strictly constrained to the user's assigned colleges (and any active college filter).
     """
-    college = request.user.college_profile.college
-    certs = _get_filtered_college_queryset(request, college)
+    profile = request.user.college_profile
+    target_colleges = _get_target_colleges(request, profile)
+    certs = _get_filtered_college_queryset(request, profile, target_colleges)
     total_count = certs.count()
 
     if total_count == 0:
@@ -336,12 +388,13 @@ def college_download_filtered_zip(request):
 
             if not pdf_bytes:
                 try:
+                    c_obj = cert.college
                     offer_letter_data = {
                         'candidate_name': cert.full_name,
                         'roll_number': cert.roll_number,
                         'course_name': cert.course or cert.internship_title,
-                        'institution_name': cert.college_name,
-                        'institution_address': cert.institution_address or getattr(college, 'address', ''),
+                        'institution_name': cert.college_name or (c_obj.name if c_obj else ''),
+                        'institution_address': cert.institution_address or (getattr(c_obj, 'address', '') if c_obj else ''),
                         'candidate_mobile': cert.candidate_mobile,
                         'candidate_email': cert.email,
                         'internship_title': cert.internship_title or cert.course,
@@ -367,14 +420,18 @@ def college_download_filtered_zip(request):
 
     zip_buffer.seek(0)
 
+    first_col = target_colleges.first()
     AuditLog.log(
         request,
         'BULK_DOWNLOAD_FILTERED',
-        f"Downloaded filtered ZIP archive containing {added_files} offer letters",
-        college=college
+        f"Downloaded filtered ZIP archive containing {added_files} offer letters across {target_colleges.count()} college(s)",
+        college=first_col
     )
 
-    clean_college = college.code or college.name.replace(' ', '_')
+    if target_colleges.count() == 1:
+        clean_college = first_col.code or first_col.name.replace(' ', '_')
+    else:
+        clean_college = "Multi_College"
     timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
     filename = f"{clean_college}_Filtered_Offer_Letters_{timestamp}.zip"
 
@@ -387,14 +444,15 @@ def college_download_filtered_zip(request):
 def college_export_excel(request):
     """
     Export all offer letters matching the currently applied filters to an Excel (.xlsx) spreadsheet.
-    Strictly isolated to the administrator's college.
+    Strictly isolated to the administrator's assigned colleges.
     """
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
 
-    college = request.user.college_profile.college
-    certs = _get_filtered_college_queryset(request, college)
+    profile = request.user.college_profile
+    target_colleges = _get_target_colleges(request, profile)
+    certs = _get_filtered_college_queryset(request, profile, target_colleges)
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -440,60 +498,66 @@ def college_export_excel(request):
 
     # Populate rows
     for idx, cert in enumerate(certs, start=1):
+        college_display = cert.college.name if cert.college else (cert.college_name or '')
         row = [
             idx,
             cert.full_name,
             cert.roll_number,
             cert.email,
             cert.candidate_mobile or '',
-            college.name or cert.college_name or '',
+            college_display,
             cert.course or '',
             cert.internship_title or '',
             cert.internship_duration or '',
             cert.start_date.strftime('%d-%m-%Y') if cert.start_date else '',
             cert.end_date.strftime('%d-%m-%Y') if cert.end_date else '',
             cert.issue_date.strftime('%d-%m-%Y') if cert.issue_date else (cert.created_at.strftime('%d-%m-%Y') if cert.created_at else ''),
-            float(cert.stipend_amount) if cert.stipend_amount is not None else 0.0,
+            float(cert.stipend_amount) if cert.stipend_amount is not None else 'Unpaid',
             cert.certificate_id or '',
             "Yes" if cert.email_sent else "No",
             cert.get_verification_url() if cert.certificate_id else '',
         ]
         ws.append(row)
-        for col_num in range(1, len(headers) + 1):
-            c = ws.cell(row=idx + 1, column=col_num)
-            c.border = border_thin
-            if col_num in [1, 3, 10, 11, 12, 13, 15]:
-                c.alignment = align_center
-            else:
-                c.alignment = align_left
 
-    # Auto-adjust column widths
+        row_num = idx + 1
+        for col_num in range(1, len(headers) + 1):
+            cell = ws.cell(row=row_num, column=col_num)
+            cell.border = border_thin
+            if col_num in [1, 3, 10, 11, 12, 13, 15]:
+                cell.alignment = align_center
+            else:
+                cell.alignment = align_left
+
+    # Auto-fit column widths
     for col in ws.columns:
         max_len = 0
         col_letter = get_column_letter(col[0].column)
         for cell in col:
-            val_str = str(cell.value or '')
-            if len(val_str) > max_len:
-                max_len = len(val_str)
-        ws.column_dimensions[col_letter].width = max(max_len + 3, 12)
+            val = str(cell.value or '')
+            if len(val) > max_len:
+                max_len = len(val)
+        ws.column_dimensions[col_letter].width = min(max(max_len + 3, 12), 45)
 
-    output = io.BytesIO()
-    wb.save(output)
-    output.seek(0)
+    ws.row_dimensions[1].height = 26
 
+    first_col = target_colleges.first()
     AuditLog.log(
         request,
         'EXPORT_EXCEL',
-        f"Exported {certs.count()} offer letters to Excel",
-        college=college
+        f"Exported {certs.count()} offer letters to Excel spreadsheet across {target_colleges.count()} college(s)",
+        college=first_col
     )
 
-    clean_college = college.code or college.name.replace(' ', '_')
+    clean_college = first_col.code or first_col.name.replace(' ', '_') if target_colleges.count() == 1 else "Multi_College"
     timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
     filename = f"{clean_college}_Offer_Letters_{timestamp}.xlsx"
 
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
     response = HttpResponse(
-        output.getvalue(),
+        buf.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
@@ -503,22 +567,18 @@ def college_export_excel(request):
 @college_admin_required
 def college_export_csv(request):
     """
-    Export all offer letters matching the currently applied filters to a CSV file.
-    Strictly isolated to the administrator's college.
+    Export all offer letters matching active filters to a CSV spreadsheet.
+    Strictly isolated to the administrator's assigned colleges.
     """
-    college = request.user.college_profile.college
-    certs = _get_filtered_college_queryset(request, college)
+    profile = request.user.college_profile
+    target_colleges = _get_target_colleges(request, profile)
+    certs = _get_filtered_college_queryset(request, profile, target_colleges)
 
-    clean_college = college.code or college.name.replace(' ', '_')
-    timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
-    filename = f"{clean_college}_Offer_Letters_{timestamp}.csv"
+    output = io.StringIO()
+    # Write UTF-8 BOM so Excel opens with proper character encoding
+    output.write('\ufeff')
+    writer = csv.writer(output)
 
-    response = HttpResponse(content_type='text/csv; charset=utf-8')
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    # Write UTF-8 BOM so Excel opens special characters cleanly
-    response.write('\ufeff'.encode('utf8'))
-
-    writer = csv.writer(response)
     headers = [
         "S.No",
         "Student Name",
@@ -540,13 +600,14 @@ def college_export_csv(request):
     writer.writerow(headers)
 
     for idx, cert in enumerate(certs, start=1):
+        college_display = cert.college.name if cert.college else (cert.college_name or '')
         writer.writerow([
             idx,
             cert.full_name,
             cert.roll_number,
             cert.email,
             cert.candidate_mobile or '',
-            college.name or cert.college_name or '',
+            college_display,
             cert.course or '',
             cert.internship_title or '',
             cert.internship_duration or '',
@@ -559,50 +620,60 @@ def college_export_csv(request):
             cert.get_verification_url() if cert.certificate_id else '',
         ])
 
+    first_col = target_colleges.first()
     AuditLog.log(
         request,
         'EXPORT_CSV',
-        f"Exported {certs.count()} offer letters to CSV",
-        college=college
+        f"Exported {certs.count()} offer letters to CSV spreadsheet across {target_colleges.count()} college(s)",
+        college=first_col
     )
 
+    clean_college = first_col.code or first_col.name.replace(' ', '_') if target_colleges.count() == 1 else "Multi_College"
+    timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"{clean_college}_Offer_Letters_{timestamp}.csv"
+
+    response = HttpResponse(output.getvalue(), content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
 
 
 @college_admin_required
 def college_change_password(request):
     """
-    Allow a College Administrator to update their account password.
+    Self-service password update for College Administrators.
     """
-    if request.method == 'POST':
-        current_password = request.POST.get('current_password', '')
-        new_password = request.POST.get('new_password', '')
-        confirm_password = request.POST.get('confirm_password', '')
-
-        if not request.user.check_password(current_password):
-            messages.error(request, "Current password is incorrect.")
-            return redirect('college_dashboard')
-
-        if not new_password or len(new_password) < 6:
-            messages.error(request, "New password must be at least 6 characters long.")
-            return redirect('college_dashboard')
-
-        if new_password != confirm_password:
-            messages.error(request, "New password confirmation does not match.")
-            return redirect('college_dashboard')
-
-        request.user.set_password(new_password)
-        request.user.save()
-        update_session_auth_hash(request, request.user)
-
-        AuditLog.log(
-            request,
-            'PASSWORD_CHANGE',
-            f"College Admin '{request.user.college_profile.full_name}' changed their password",
-            college=request.user.college_profile.college
-        )
-
-        messages.success(request, "Password updated successfully.")
+    if request.method != 'POST':
+        messages.error(request, "Invalid request method.")
         return redirect('college_dashboard')
 
+    current_password = request.POST.get('current_password', '')
+    new_password = request.POST.get('new_password', '')
+    confirm_password = request.POST.get('confirm_password', '')
+
+    user = request.user
+    if not user.check_password(current_password):
+        messages.error(request, "Current password does not match.")
+        return redirect('college_dashboard')
+
+    if not new_password or len(new_password) < 6:
+        messages.error(request, "New password must be at least 6 characters.")
+        return redirect('college_dashboard')
+
+    if new_password != confirm_password:
+        messages.error(request, "New password confirmation does not match.")
+        return redirect('college_dashboard')
+
+    user.set_password(new_password)
+    user.save()
+    update_session_auth_hash(request, user)
+
+    profile = getattr(user, 'college_profile', None)
+    AuditLog.log(
+        request,
+        'PASSWORD_CHANGE',
+        f"College Administrator '{profile.full_name}' changed their account password",
+        college=profile.primary_college if profile else None
+    )
+
+    messages.success(request, "Password updated successfully.")
     return redirect('college_dashboard')

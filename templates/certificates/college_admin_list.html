@@ -135,9 +135,25 @@
                                 </a>
                             </td>
                             <td>
-                                <span class="badge bg-light text-dark border px-2 py-1">
-                                    <i class="fas fa-university text-primary me-1"></i>{{ profile.college.name }}
-                                </span>
+                                {% with col_list=profile.get_colleges %}
+                                    {% if col_list %}
+                                        <div class="d-flex flex-wrap gap-1 align-items-center" style="max-width: 320px;">
+                                            {% for col in col_list %}
+                                                <span class="badge bg-light text-dark border px-2 py-1 small" title="{{ col.name }}">
+                                                    <i class="fas fa-university text-primary me-1"></i>{{ col.name }}
+                                                </span>
+                                            {% endfor %}
+                                        </div>
+                                    {% elif profile.college %}
+                                        <span class="badge bg-light text-dark border px-2 py-1 small">
+                                            <i class="fas fa-university text-primary me-1"></i>{{ profile.college.name }}
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-warning-subtle text-warning border px-2 py-1 small">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>None Assigned
+                                        </span>
+                                    {% endif %}
+                                {% endwith %}
                             </td>
                             <td class="text-center">
                                 {% if profile.is_active and profile.user.is_active %}
@@ -175,7 +191,7 @@
                                             data-action-url="{% url 'college_admin_reset_password' profile.id %}"
                                             data-admin-name="{{ profile.full_name }}"
                                             data-admin-email="{{ profile.user.email|default:profile.user.username }}"
-                                            data-college-name="{{ profile.college.name }}"
+                                            data-college-name="{% for c in profile.colleges.all %}{{ c.name }}{% if not forloop.last %}, {% endif %}{% empty %}{{ profile.college.name }}{% endfor %}"
                                             title="Reset Password">
                                         <i class="fas fa-key"></i>
                                     </button>

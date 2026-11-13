@@ -429,18 +429,26 @@ def generate_custom_certificate_id():
 
 
 class CollegeAdminProfile(models.Model):
-    """Profile associating a Django User with a single College"""
+    """Profile associating a Django User with one or more Colleges"""
     user = models.OneToOneField(
         User, 
         on_delete=models.CASCADE, 
         related_name='college_profile',
         help_text="Django user account"
     )
+    colleges = models.ManyToManyField(
+        College,
+        related_name='college_administrators',
+        blank=True,
+        help_text="Assigned colleges and institutions"
+    )
     college = models.ForeignKey(
         College, 
-        on_delete=models.CASCADE, 
-        related_name='administrators',
-        help_text="Assigned college institution"
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='legacy_administrators',
+        help_text="Primary or legacy assigned college (deprecated in favor of colleges)"
     )
     full_name = models.CharField(max_length=200, help_text="Administrator full name")
     phone = models.CharField(max_length=20, blank=True, null=True, help_text="Contact phone number")
@@ -454,7 +462,63 @@ class CollegeAdminProfile(models.Model):
         verbose_name_plural = "College Administrator Profiles"
 
     def __str__(self):
-        return f"{self.full_name} ({self.college.name})"
+        try:
+            col_names = list(self.colleges.values_list('name', flat=True)[:2])
+            total = self.colleges.count()
+            if total > 2:
+                summary = f"{', '.join(col_names)} (+{total - 2} more)"
+            elif total > 0:
+                summary = ", ".join(col_names)
+            elif self.college:
+                summary = self.college.name
+            else:
+                summary = "No Colleges Assigned"
+        except Exception:
+            summary = self.college.name if self.college else "No Colleges Assigned"
+        return f"{self.full_name} ({summary})"
+
+    def get_colleges(self):
+        """Return active colleges assigned to this administrator with legacy fallback."""
+        try:
+            qs = self.colleges.filter(is_active=True)
+            if qs.exists():
+                return qs
+            if self.college and self.college.is_active:
+                try:
+                    self.colleges.add(self.college)
+                    return self.colleges.filter(is_active=True)
+                except Exception:
+                    pass
+                return College.objects.filter(pk=self.college.id)
+            return qs
+        except Exception:
+            # Fallback when M2M intermediate table does not exist yet (migration pending)
+            if self.college and self.college.is_active:
+                return College.objects.filter(pk=self.college.id)
+            return College.objects.none()
+
+    def get_college_ids(self):
+        """Return active college IDs assigned to this administrator."""
+        try:
+            return list(self.colleges.filter(is_active=True).values_list('id', flat=True))
+        except Exception:
+            return [self.college.id] if (self.college and self.college.is_active) else []
+
+    def has_college(self, college_or_id):
+        """Check if a specific college is authorized for this administrator."""
+        c_id = getattr(college_or_id, 'id', college_or_id)
+        try:
+            return self.colleges.filter(id=c_id, is_active=True).exists()
+        except Exception:
+            return bool(self.college and self.college.id == c_id and self.college.is_active)
+
+    @property
+    def primary_college(self):
+        """Return the first active assigned college or legacy college for backwards compatibility."""
+        try:
+            return self.colleges.filter(is_active=True).first() or self.college
+        except Exception:
+            return self.college
 
 
 class AuditLog(models.Model):

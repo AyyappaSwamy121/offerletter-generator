@@ -1932,13 +1932,17 @@ def login_view(request):
             # Check if user is a college administrator
             if hasattr(user, 'college_profile'):
                 profile = user.college_profile
+                primary_col = profile.primary_college
+
                 if not profile.is_active:
-                    AuditLog.log(request, 'LOGIN_FAILED', f"Deactivated college admin '{identifier}' attempted login", college=profile.college)
+                    AuditLog.log(request, 'LOGIN_FAILED', f"Deactivated college admin '{identifier}' attempted login", college=primary_col)
                     messages.error(request, 'Your college administrator account has been deactivated. Please contact the Super Admin.')
                     return render(request, 'login.html')
-                if not profile.college.is_active:
-                    AuditLog.log(request, 'LOGIN_FAILED', f"College admin '{identifier}' attempted login for suspended college '{profile.college.name}'", college=profile.college)
-                    messages.error(request, 'Your college account is currently suspended. Please contact the Super Admin.')
+
+                active_colleges = profile.get_colleges()
+                if not active_colleges.exists():
+                    AuditLog.log(request, 'LOGIN_FAILED', f"College admin '{identifier}' attempted login with no active assigned colleges", college=primary_col)
+                    messages.error(request, 'Your assigned institutions are currently suspended or none are assigned. Please contact the Super Admin.')
                     return render(request, 'login.html')
 
                 login(request, user)
@@ -1947,8 +1951,12 @@ def login_view(request):
                 else:
                     request.session.set_expiry(0)
 
-                AuditLog.log(request, 'LOGIN', f"College Admin '{profile.full_name}' logged in successfully", college=profile.college)
-                messages.success(request, f"Welcome back, {profile.full_name} ({profile.college.name})")
+                col_names = ", ".join(active_colleges.values_list('name', flat=True)[:2])
+                if active_colleges.count() > 2:
+                    col_names += f" (+{active_colleges.count() - 2} more)"
+
+                AuditLog.log(request, 'LOGIN', f"College Admin '{profile.full_name}' logged in successfully ({col_names})", college=active_colleges.first())
+                messages.success(request, f"Welcome back, {profile.full_name} ({col_names})")
                 return redirect('college_dashboard')
 
             # Super Admin / Staff user

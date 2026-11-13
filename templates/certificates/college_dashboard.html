@@ -123,7 +123,14 @@
                 <!-- Institution Badge in Header -->
                 <div class="ms-lg-4 my-2 my-lg-0">
                     <span class="badge bg-white text-primary px-3 py-2 fs-6 shadow-sm">
-                        <i class="fas fa-university me-1 text-primary"></i> {{ college.name }}
+                        <i class="fas fa-university me-1 text-primary"></i>
+                        {% if selected_college %}
+                            {{ selected_college.name }}
+                        {% elif assigned_colleges.count == 1 %}
+                            {{ assigned_colleges.first.name }}
+                        {% else %}
+                            All Assigned Institutions ({{ assigned_colleges.count }})
+                        {% endif %}
                     </span>
                 </div>
 
@@ -188,9 +195,30 @@
         <!-- Welcome Banner -->
         <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
             <div>
-                <h3 class="fw-bold text-dark mb-0">
-                    {{ college.name }}
+                <h3 class="fw-bold text-dark mb-1">
+                    {% if selected_college %}
+                        {{ selected_college.name }}
+                    {% elif assigned_colleges.count == 1 %}
+                        {{ assigned_colleges.first.name }}
+                    {% else %}
+                        Combined Institutional Repository
+                    {% endif %}
                 </h3>
+                {% if assigned_colleges.count > 1 %}
+                    <div class="d-flex align-items-center flex-wrap gap-1 mt-1">
+                        <span class="text-muted small me-1">Assigned Institutions:</span>
+                        {% for col in assigned_colleges %}
+                            <a href="?college_id={{ col.id }}" class="badge {% if selected_college_id == col.id|stringformat:'s' %}bg-primary text-white{% else %}bg-white text-dark border{% endif %} text-decoration-none py-1 px-2" style="font-size: 0.75rem;">
+                                <i class="fas fa-university me-1"></i>{{ col.name }}
+                            </a>
+                        {% endfor %}
+                        {% if selected_college %}
+                            <a href="{% url 'college_dashboard' %}" class="badge bg-light text-secondary border text-decoration-none py-1 px-2" style="font-size: 0.75rem;">
+                                <i class="fas fa-layer-group me-1"></i>Show All ({{ assigned_colleges.count }})
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endif %}
             </div>
             <div class="text-muted small">
                 <i class="far fa-calendar-alt me-1"></i> Today: {% now "d M Y" %}
@@ -254,7 +282,7 @@
             <div class="p-3 border-bottom bg-white rounded-top">
                 <form method="get" class="row g-2 align-items-center" id="filterForm">
                     <!-- Search Input -->
-                    <div class="col-xl-4 col-lg-4 col-md-6">
+                    <div class="{% if assigned_colleges.count > 1 %}col-xl-3 col-lg-3 col-md-6{% else %}col-xl-4 col-lg-4 col-md-6{% endif %}">
                         <div class="input-group">
                             <span class="input-group-text bg-white border-end-0 text-muted">
                                 <i class="fas fa-search"></i>
@@ -263,8 +291,20 @@
                         </div>
                     </div>
 
-                    <!-- Course Filter -->
+                    {% if assigned_colleges.count > 1 %}
+                    <!-- College Filter (Only shown if admin manages multiple colleges) -->
                     <div class="col-xl-3 col-lg-3 col-md-6">
+                        <select name="college_id" class="form-select border-primary-subtle" onchange="this.form.submit()">
+                            <option value="">All Assigned Colleges ({{ assigned_colleges.count }})</option>
+                            {% for col in assigned_colleges %}
+                                <option value="{{ col.id }}" {% if selected_college_id == col.id|stringformat:'s' %}selected{% endif %}>{{ col.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <!-- Course Filter -->
+                    <div class="{% if assigned_colleges.count > 1 %}col-xl-3 col-lg-3 col-md-6{% else %}col-xl-3 col-lg-3 col-md-6{% endif %}">
                         <select name="course" class="form-select">
                             <option value="">All Courses &amp; Specializations</option>
                             {% for c_name in courses %}
@@ -274,7 +314,7 @@
                     </div>
 
                     <!-- Email Status Filter -->
-                    <div class="col-xl-2 col-lg-2 col-md-4">
+                    <div class="{% if assigned_colleges.count > 1 %}col-xl-3 col-lg-3 col-md-6{% else %}col-xl-2 col-lg-2 col-md-4{% endif %}">
                         <select name="email_status" class="form-select">
                             <option value="">All Email Status</option>
                             <option value="sent" {% if email_status == 'sent' %}selected{% endif %}>Email Delivered</option>
@@ -282,25 +322,21 @@
                         </select>
                     </div>
 
-                    <!-- Date From -->
-                    <div class="col-xl-3 col-lg-3 col-md-4">
-                        <div class="input-group">
-                            <span class="input-group-text bg-white small text-muted">From</span>
-                            <input type="date" class="form-control" name="date_from" value="{{ date_from }}">
-                        </div>
-                    </div>
-
-                    <!-- Date To & Filter Buttons -->
+                    <!-- Date Filters & Action Toolbar -->
                     <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2 pt-2 border-top">
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="input-group" style="width: 220px;">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <div class="input-group" style="width: 190px;">
+                                <span class="input-group-text bg-white small text-muted">From</span>
+                                <input type="date" class="form-control" name="date_from" value="{{ date_from }}">
+                            </div>
+                            <div class="input-group" style="width: 190px;">
                                 <span class="input-group-text bg-white small text-muted">To</span>
                                 <input type="date" class="form-control" name="date_to" value="{{ date_to }}">
                             </div>
                             <button type="submit" class="btn btn-primary btn-action">
                                 <i class="fas fa-filter me-1"></i> Apply Filters
                             </button>
-                            {% if search or course or email_status or date_from or date_to %}
+                            {% if search or course or email_status or date_from or date_to or selected_college_id %}
                                 <a href="{% url 'college_dashboard' %}" class="btn btn-outline-secondary btn-action" title="Clear Filters">
                                     <i class="fas fa-undo me-1"></i> Reset
                                 </a>
@@ -348,6 +384,9 @@
                                 </th>
                                 <th>#</th>
                                 <th>Student Name</th>
+                                {% if assigned_colleges.count > 1 %}
+                                <th>Institution</th>
+                                {% endif %}
                                 <th>Roll Number</th>
                                 <th>Course / Specialization</th>
                                 <th>Offer Letter ID</th>
@@ -369,6 +408,13 @@
                                     <div class="fw-semibold text-dark">{{ cert.full_name }}</div>
                                     <div class="text-muted small">{{ cert.email }}</div>
                                 </td>
+                                {% if assigned_colleges.count > 1 %}
+                                <td>
+                                    <span class="badge bg-light text-dark border font-monospace">
+                                        <i class="fas fa-university me-1 text-primary"></i>{{ cert.college.name|default:cert.college_name }}
+                                    </span>
+                                </td>
+                                {% endif %}
                                 <td>
                                     <span class="badge bg-light text-dark border font-monospace">
                                         {{ cert.roll_number }}
@@ -417,10 +463,10 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="9" class="text-center py-5 text-muted">
+                                <td colspan="{% if assigned_colleges.count > 1 %}10{% else %}9{% endif %}" class="text-center py-5 text-muted">
                                     <i class="fas fa-folder-open fa-3x mb-3 text-secondary opacity-50 d-block"></i>
                                     <h5>No offer letters found</h5>
-                                    <p class="small mb-0">No records match the selected filters or search criteria for {{ college.name }}.</p>
+                                    <p class="small mb-0">No records match the selected filters or search criteria{% if selected_college %} for {{ selected_college.name }}{% endif %}.</p>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -439,7 +485,7 @@
                     <ul class="pagination pagination-sm mb-0">
                         {% if page_obj.has_previous %}
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if course %}&course={{ course }}{% endif %}{% if email_status %}&email_status={{ email_status }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if course %}&course={{ course }}{% endif %}{% if email_status %}&email_status={{ email_status }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if selected_college_id %}&college_id={{ selected_college_id }}{% endif %}">
                                     <i class="fas fa-chevron-left"></i>
                                 </a>
                             </li>
@@ -451,7 +497,7 @@
 
                         {% if page_obj.has_next %}
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if course %}&course={{ course }}{% endif %}{% if email_status %}&email_status={{ email_status }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if course %}&course={{ course }}{% endif %}{% if email_status %}&email_status={{ email_status }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if selected_college_id %}&college_id={{ selected_college_id }}{% endif %}">
                                     <i class="fas fa-chevron-right"></i>
                                 </a>
                             </li>
@@ -492,33 +538,64 @@
 
     <!-- Institution Info Modal -->
     <div class="modal fade" id="collegeInfoModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered {% if assigned_colleges.count > 1 %}modal-lg{% endif %}">
             <div class="modal-content border-0 shadow">
                 <div class="modal-header bg-light">
                     <h5 class="modal-title text-dark">
-                        <i class="fas fa-university text-primary me-2"></i>{{ college.name }}
+                        <i class="fas fa-university text-primary me-2"></i>
+                        {% if assigned_colleges.count > 1 %}
+                            Assigned Institutions ({{ assigned_colleges.count }})
+                        {% else %}
+                            {{ assigned_colleges.first.name }}
+                        {% endif %}
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <table class="table table-sm table-borderless mb-0">
-                        <tr>
-                            <td class="text-muted fw-semibold" style="width: 140px;">Institution Code:</td>
-                            <td class="fw-bold">{{ college.code|default:"-" }}</td>
-                        </tr>
-                        <tr>
-                            <td class="text-muted fw-semibold">Campus Address:</td>
-                            <td>{{ college.address|default:"-" }}</td>
-                        </tr>
-                        <tr>
-                            <td class="text-muted fw-semibold">Total Offers:</td>
-                            <td><span class="badge bg-primary">{{ stats.total_offer_letters }}</span></td>
-                        </tr>
-                        <tr>
-                            <td class="text-muted fw-semibold">Tenant Status:</td>
-                            <td><span class="badge bg-success">Active &bull; Verified Tenant</span></td>
-                        </tr>
-                    </table>
+                    {% if assigned_colleges.count > 1 %}
+                        <div class="text-muted small mb-3">
+                            You have administrative access to the following <strong>{{ assigned_colleges.count }}</strong> institutions:
+                        </div>
+                        <div class="list-group">
+                            {% for col in assigned_colleges %}
+                            <div class="list-group-item p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <h6 class="fw-bold mb-0 text-primary">{{ col.name }}</h6>
+                                    <span class="badge bg-success">Active &bull; Verified</span>
+                                </div>
+                                <div class="small text-muted">
+                                    <div><i class="fas fa-hashtag me-1"></i> Code: <strong>{{ col.code|default:"-" }}</strong></div>
+                                    <div><i class="fas fa-map-marker-alt me-1"></i> Address: {{ col.address|default:"-" }}</div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        {% with col=assigned_colleges.first %}
+                        <table class="table table-sm table-borderless mb-0">
+                            <tr>
+                                <td class="text-muted fw-semibold" style="width: 140px;">Institution Name:</td>
+                                <td class="fw-bold">{{ col.name }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted fw-semibold">Institution Code:</td>
+                                <td class="fw-bold">{{ col.code|default:"-" }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted fw-semibold">Campus Address:</td>
+                                <td>{{ col.address|default:"-" }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted fw-semibold">Total Offers:</td>
+                                <td><span class="badge bg-primary">{{ stats.total_offer_letters }}</span></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted fw-semibold">Tenant Status:</td>
+                                <td><span class="badge bg-success">Active &bull; Verified Tenant</span></td>
+                            </tr>
+                        </table>
+                        {% endwith %}
+                    {% endif %}
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
@@ -627,6 +704,7 @@
                                         <div class="p-3 bg-light rounded-3">
                                             <div class="text-muted small text-uppercase fw-semibold mb-1">Candidate Details</div>
                                             <h5 class="fw-bold mb-1 text-dark">${data.full_name}</h5>
+                                            <div class="small text-muted mb-1"><i class="fas fa-university me-1 text-primary"></i> Institution: <strong>${data.college_name || 'N/A'}</strong></div>
                                             <div class="small text-muted mb-1"><i class="fas fa-id-badge me-1"></i> Roll Number: <strong>${data.roll_number}</strong></div>
                                             <div class="small text-muted mb-1"><i class="fas fa-envelope me-1"></i> ${data.email}</div>
                                             <div class="small text-muted"><i class="fas fa-phone me-1"></i> ${data.candidate_mobile}</div>

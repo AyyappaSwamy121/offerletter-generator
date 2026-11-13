@@ -2,6 +2,7 @@ import os
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.models import User
+from django.db import OperationalError
 from django.db.models import Q, Count
 from django.utils import timezone
 from datetime import datetime
@@ -17,18 +18,43 @@ def college_admin_list(request):
     college_filter = request.GET.get('college', '').strip()
     status_filter = request.GET.get('status', '').strip()
 
-    profiles = CollegeAdminProfile.objects.select_related('user', 'college').all()
-
-    if search_query:
-        profiles = profiles.filter(
-            Q(full_name__icontains=search_query) |
-            Q(user__email__icontains=search_query) |
-            Q(user__username__icontains=search_query) |
-            Q(college__name__icontains=search_query)
+    # Graceful handling if migration 0034 has not been applied yet
+    m2m_available = True
+    try:
+        profiles = CollegeAdminProfile.objects.select_related('user', 'college').prefetch_related('colleges').all()
+        # Evaluate to check if intermediate table exists
+        list(profiles[:1])
+    except OperationalError:
+        m2m_available = False
+        profiles = CollegeAdminProfile.objects.select_related('user', 'college').all()
+        messages.warning(
+            request,
+            "Database migration pending: The multi-college table is not created yet. "
+            "Please run 'python manage.py migrate' in your server terminal to apply migration 0034."
         )
 
+    if search_query:
+        if m2m_available:
+            profiles = profiles.filter(
+                Q(full_name__icontains=search_query) |
+                Q(user__email__icontains=search_query) |
+                Q(user__username__icontains=search_query) |
+                Q(colleges__name__icontains=search_query) |
+                Q(college__name__icontains=search_query)
+            ).distinct()
+        else:
+            profiles = profiles.filter(
+                Q(full_name__icontains=search_query) |
+                Q(user__email__icontains=search_query) |
+                Q(user__username__icontains=search_query) |
+                Q(college__name__icontains=search_query)
+            ).distinct()
+
     if college_filter:
-        profiles = profiles.filter(college_id=college_filter)
+        if m2m_available:
+            profiles = profiles.filter(Q(colleges__id=college_filter) | Q(college_id=college_filter)).distinct()
+        else:
+            profiles = profiles.filter(college_id=college_filter).distinct()
 
     if status_filter:
         if status_filter == 'active':
@@ -59,13 +85,13 @@ def college_admin_list(request):
 
 @super_admin_required
 def college_admin_create(request):
-    """Super Admin view: Create a new College Administrator account."""
+    """Super Admin view: Create a new College Administrator account with multiple colleges."""
     colleges = College.objects.filter(is_active=True).order_by('name')
 
     if request.method == 'POST':
         full_name = request.POST.get('full_name', '').strip()
         email = request.POST.get('email', '').strip().lower()
-        college_id = request.POST.get('college_id')
+        college_ids = request.POST.getlist('college_ids')
         password = request.POST.get('password')
         confirm_password = request.POST.get('confirm_password')
         phone = request.POST.get('phone', '').strip()
@@ -78,8 +104,8 @@ def college_admin_create(request):
             errors.append("Full name is required.")
         if not email or '@' not in email:
             errors.append("A valid email address is required.")
-        if not college_id:
-            errors.append("Please select a college.")
+        if not college_ids:
+            errors.append("Please select at least one active institution.")
         if not password or len(password) < 6:
             errors.append("Password must be at least 6 characters long.")
         if password != confirm_password:
@@ -89,9 +115,9 @@ def college_admin_create(request):
         if User.objects.filter(Q(email__iexact=email) | Q(username__iexact=email)).exists():
             errors.append(f"An account with email or username '{email}' already exists.")
 
-        selected_college = College.objects.filter(pk=college_id).first()
-        if not selected_college:
-            errors.append("Selected college does not exist.")
+        selected_colleges = College.objects.filter(pk__in=college_ids, is_active=True)
+        if not selected_colleges.exists():
+            errors.append("Please select at least one active, valid institution.")
 
         if errors:
             for err in errors:
@@ -99,6 +125,7 @@ def college_admin_create(request):
             context = {
                 'colleges': colleges,
                 'form_data': request.POST,
+                'assigned_college_ids': [int(cid) for cid in college_ids if cid.isdigit()],
                 'page_title': 'Add College Administrator',
             }
             return render(request, 'certificates/college_admin_form.html', context)
@@ -114,22 +141,26 @@ def college_admin_create(request):
                 is_active=is_active
             )
             # Create CollegeAdminProfile
+            first_college = selected_colleges.first()
             profile = CollegeAdminProfile.objects.create(
                 user=user,
-                college=selected_college,
+                college=first_college,
                 full_name=full_name,
                 phone=phone,
                 is_active=is_active
             )
+            # Set Many-to-Many relationships
+            profile.colleges.set(selected_colleges)
 
+            col_names = ", ".join(selected_colleges.values_list('name', flat=True))
             AuditLog.log(
                 request,
                 'CREATE_COLLEGE_ADMIN',
-                f"Created College Admin account '{full_name}' ({email}) for '{selected_college.name}'",
-                college=selected_college
+                f"Created College Admin account '{full_name}' ({email}) assigned to: {col_names}",
+                college=first_college
             )
 
-            messages.success(request, f"College Administrator '{full_name}' created successfully for {selected_college.name}.")
+            messages.success(request, f"College Administrator '{full_name}' created successfully with {selected_colleges.count()} assigned institution(s).")
             return redirect('college_admin_list')
 
         except Exception as e:
@@ -137,6 +168,7 @@ def college_admin_create(request):
 
     context = {
         'colleges': colleges,
+        'assigned_college_ids': [],
         'page_title': 'Add College Administrator',
     }
     return render(request, 'certificates/college_admin_form.html', context)
@@ -144,14 +176,14 @@ def college_admin_create(request):
 
 @super_admin_required
 def college_admin_edit(request, pk):
-    """Super Admin view: Edit an existing College Administrator account."""
+    """Super Admin view: Edit an existing College Administrator account with multiple colleges."""
     profile = get_object_or_404(CollegeAdminProfile, pk=pk)
     colleges = College.objects.filter(is_active=True).order_by('name')
 
     if request.method == 'POST':
         full_name = request.POST.get('full_name', '').strip()
         email = request.POST.get('email', '').strip().lower()
-        college_id = request.POST.get('college_id')
+        college_ids = request.POST.getlist('college_ids')
         phone = request.POST.get('phone', '').strip()
         status = request.POST.get('status', 'active')
         is_active = (status == 'active')
@@ -161,12 +193,12 @@ def college_admin_edit(request, pk):
             errors.append("Full name is required.")
         if not email or '@' not in email:
             errors.append("Valid email is required.")
-        if not college_id:
-            errors.append("College selection is required.")
+        if not college_ids:
+            errors.append("Please select at least one active institution.")
 
-        selected_college = College.objects.filter(pk=college_id).first()
-        if not selected_college:
-            errors.append("Selected college does not exist.")
+        selected_colleges = College.objects.filter(pk__in=college_ids, is_active=True)
+        if not selected_colleges.exists():
+            errors.append("Please select at least one active, valid institution.")
 
         # Check email uniqueness excluding current user
         if User.objects.filter(Q(email__iexact=email) | Q(username__iexact=email)).exclude(pk=profile.user.pk).exists():
@@ -176,10 +208,12 @@ def college_admin_edit(request, pk):
             for err in errors:
                 messages.error(request, err)
         else:
+            first_college = selected_colleges.first()
             profile.full_name = full_name
             profile.phone = phone
-            profile.college = selected_college
+            profile.college = first_college
             profile.is_active = is_active
+            profile.colleges.set(selected_colleges)
             profile.save()
 
             # Update User record
@@ -189,19 +223,26 @@ def college_admin_edit(request, pk):
             user.is_active = is_active
             user.save()
 
+            col_names = ", ".join(selected_colleges.values_list('name', flat=True))
             AuditLog.log(
                 request,
                 'UPDATE_COLLEGE_ADMIN',
-                f"Updated College Admin '{full_name}' ({email}) for college '{selected_college.name}'",
-                college=selected_college
+                f"Updated College Admin '{full_name}' ({email}) assigned to: {col_names}",
+                college=first_college
             )
 
-            messages.success(request, f"Administrator '{full_name}' updated successfully.")
+            messages.success(request, f"Administrator '{full_name}' updated successfully ({selected_colleges.count()} college(s) assigned).")
             return redirect('college_admin_list')
+
+    # On GET or error, preselect assigned college IDs
+    current_ids = list(profile.colleges.values_list('id', flat=True))
+    if not current_ids and profile.college_id:
+        current_ids = [profile.college_id]
 
     context = {
         'profile': profile,
         'colleges': colleges,
+        'assigned_college_ids': current_ids,
         'is_edit': True,
         'page_title': f'Edit Administrator - {profile.full_name}',
     }
@@ -230,8 +271,8 @@ def college_admin_toggle_status(request, pk):
     AuditLog.log(
         request,
         action,
-        f"{action_text.capitalize()} College Admin account '{profile.full_name}' ({profile.user.email})",
-        college=profile.college
+        f"Super Admin {action_text} account '{profile.full_name}' ({profile.user.email})",
+        college=profile.primary_college
     )
 
     messages.success(request, f"Administrator account for '{profile.full_name}' has been {action_text}.")
@@ -240,7 +281,7 @@ def college_admin_toggle_status(request, pk):
 
 @super_admin_required
 def college_admin_reset_password(request, pk):
-    """Super Admin view: Reset a College Administrator's password."""
+    """Super Admin view: Reset password for a College Administrator."""
     if request.method != 'POST':
         messages.error(request, "Invalid request method.")
         return redirect('college_admin_list')
@@ -250,11 +291,11 @@ def college_admin_reset_password(request, pk):
     confirm_password = request.POST.get('confirm_password', '').strip()
 
     if not new_password or len(new_password) < 6:
-        messages.error(request, "Password must be at least 6 characters long.")
+        messages.error(request, "New password must be at least 6 characters long.")
         return redirect('college_admin_list')
 
     if new_password != confirm_password:
-        messages.error(request, "Passwords do not match.")
+        messages.error(request, "New password confirmation does not match.")
         return redirect('college_admin_list')
 
     profile.user.set_password(new_password)
@@ -263,8 +304,8 @@ def college_admin_reset_password(request, pk):
     AuditLog.log(
         request,
         'PASSWORD_RESET',
-        f"Reset password for College Admin '{profile.full_name}' ({profile.user.email})",
-        college=profile.college
+        f"Super Admin reset password for College Admin '{profile.full_name}' ({profile.user.email})",
+        college=profile.primary_college
     )
 
     messages.success(request, f"Password for '{profile.full_name}' has been reset successfully.")
@@ -273,13 +314,20 @@ def college_admin_reset_password(request, pk):
 
 @super_admin_required
 def audit_log_list(request):
-    """Super Admin view: Display audit logs with search and date filtering."""
-    search_query = request.GET.get('search', '').strip()
+    """Super Admin view: Search and filter the complete system audit trail."""
     action_filter = request.GET.get('action', '').strip()
-    from_date = request.GET.get('from_date', '').strip()
-    to_date = request.GET.get('to_date', '').strip()
+    role_filter = request.GET.get('role', '').strip()
+    search_query = request.GET.get('search', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
 
-    logs = AuditLog.objects.select_related('user', 'college').all()
+    logs = AuditLog.objects.select_related('college').all().order_by('-created_at')
+
+    if action_filter:
+        logs = logs.filter(action=action_filter)
+
+    if role_filter:
+        logs = logs.filter(role=role_filter)
 
     if search_query:
         logs = logs.filter(
@@ -289,26 +337,21 @@ def audit_log_list(request):
             Q(ip_address__icontains=search_query)
         )
 
-    if action_filter:
-        logs = logs.filter(action=action_filter)
-
-    if from_date:
+    if date_from:
         try:
-            dt_from = datetime.strptime(from_date, '%Y-%m-%d')
-            logs = logs.filter(created_at__gte=dt_from)
+            d_from = datetime.strptime(date_from, '%Y-%m-%d').date()
+            logs = logs.filter(created_at__date__gte=d_from)
         except ValueError:
             pass
 
-    if to_date:
+    if date_to:
         try:
-            dt_to = datetime.strptime(to_date, '%Y-%m-%d')
-            # include the entire day
-            dt_to = dt_to.replace(hour=23, minute=59, second=59)
-            logs = logs.filter(created_at__lte=dt_to)
+            d_to = datetime.strptime(date_to, '%Y-%m-%d').date()
+            logs = logs.filter(created_at__date__lte=d_to)
         except ValueError:
             pass
 
-    # Pagination: 50 per page
+    # Pagination: 50 items per page
     from django.core.paginator import Paginator
     paginator = Paginator(logs, 50)
     page_number = request.GET.get('page', 1)
@@ -318,13 +361,13 @@ def audit_log_list(request):
 
     context = {
         'page_obj': page_obj,
-        'search_query': search_query,
-        'action_filter': action_filter,
-        'from_date': from_date,
-        'to_date': to_date,
         'actions': actions,
+        'action_filter': action_filter,
+        'role_filter': role_filter,
+        'search_query': search_query,
+        'date_from': date_from,
+        'date_to': date_to,
         'total_logs': logs.count(),
-        'page_title': 'Audit Logs & Activity Monitoring',
+        'page_title': 'Audit Logs',
     }
     return render(request, 'certificates/audit_log_list.html', context)
-

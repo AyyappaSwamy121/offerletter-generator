@@ -17,11 +17,13 @@ def is_college_admin(user):
     """Check if the user is an active College Administrator."""
     if not user.is_authenticated:
         return False
+    if not hasattr(user, 'college_profile'):
+        return False
+    profile = user.college_profile
     return (
-        hasattr(user, 'college_profile') and 
-        user.college_profile.is_active and 
-        user.college_profile.college.is_active and
-        user.is_active
+        profile.is_active and 
+        user.is_active and 
+        profile.get_colleges().exists()
     )
 
 
@@ -50,7 +52,6 @@ def college_admin_required(view_func):
         
         # If user is a super admin, allow them to view or redirect appropriately
         if is_super_admin(request.user):
-            # Super admins can access or are redirected to home
             messages.info(request, "You are logged in as Super Admin. Redirected to Super Admin Home.")
             return redirect('home')
 
@@ -63,11 +64,14 @@ def college_admin_required(view_func):
             messages.error(request, "Your college administrator account has been deactivated. Please contact the Super Admin.")
             return redirect('login')
 
-        if not profile.college.is_active:
-            messages.error(request, "Your institution account is currently suspended. Please contact the Super Admin.")
+        # Check if the administrator has at least one active assigned college
+        active_colleges = profile.colleges.filter(is_active=True)
+        if not active_colleges.exists():
+            messages.error(request, "Your assigned institutions are currently suspended or none are assigned. Please contact the Super Admin.")
             return redirect('login')
 
         return view_func(request, *args, **kwargs)
+    return _wrapped_view
     return _wrapped_view
 
 

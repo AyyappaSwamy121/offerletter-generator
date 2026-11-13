@@ -3,10 +3,39 @@
 
 {% block title %}{{ page_title }} - CertGen{% endblock %}
 
+{% block extra_css %}
+<style>
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    .college-item:hover {
+        background-color: #f8fafc;
+    }
+    .college-chip {
+        font-size: 0.82rem;
+        border-radius: 20px;
+        transition: all 0.2s ease;
+    }
+    .college-chip:hover {
+        background-color: #e2e8f0;
+    }
+    #collegeChecklistContainer::-webkit-scrollbar {
+        width: 6px;
+    }
+    #collegeChecklistContainer::-webkit-scrollbar-track {
+        background: #f1f5f9;
+    }
+    #collegeChecklistContainer::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
     <div class="row justify-content-center">
-        <div class="col-lg-8 col-md-10">
+        <div class="col-lg-9 col-md-11">
 
             <!-- Breadcrumb Navigation -->
             <nav aria-label="breadcrumb" class="mb-3">
@@ -25,7 +54,7 @@
                             {% if is_edit %}Edit College Administrator{% else %}Add College Administrator{% endif %}
                         </h4>
                         <p class="text-muted small mb-0 mt-1">
-                            {% if is_edit %}Update institution assignment or account status.{% else %}Create an authenticated administrator account for an authorized college.{% endif %}
+                            {% if is_edit %}Update institution assignments or account status.{% else %}Create an authenticated administrator account with multi-college access.{% endif %}
                         </p>
                     </div>
                     <a href="{% url 'college_admin_list' %}" class="btn btn-outline-secondary btn-sm">
@@ -34,7 +63,7 @@
                 </div>
 
                 <div class="card-body p-4">
-                    <form method="post" novalidate>
+                    <form method="post" id="collegeAdminForm" novalidate>
                         {% csrf_token %}
 
                         <!-- Full Name -->
@@ -69,24 +98,61 @@
                                    placeholder="e.g. +91 9876543210">
                         </div>
 
-                        <!-- College Selection -->
-                        <div class="mb-3">
-                            <label for="college_id" class="form-label fw-semibold">
-                                Assigned College / Institution <span class="text-danger">*</span>
-                            </label>
-                            <select class="form-select" id="college_id" name="college_id" required>
-                                <option value="">-- Select Participating Institution --</option>
+                        <!-- Multi-College Selection Component -->
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-semibold mb-0">
+                                    Assigned Colleges &amp; Institutions <span class="text-danger">*</span>
+                                </label>
+                                <span class="badge bg-primary rounded-pill px-3 py-1" id="selectedCountBadge">
+                                    0 selected
+                                </span>
+                            </div>
+                            <div class="text-muted small mb-2">
+                                Assign one or multiple institutions. The administrator will be able to search, filter, and export offer letters for all assigned colleges.
+                            </div>
+
+                            <!-- Selected College Chips / Badges Display -->
+                            <div class="p-2 border rounded bg-light mb-2 d-flex flex-wrap align-items-center gap-1" id="selectedBadgesContainer" style="min-height: 48px;">
+                                <span class="text-muted small fst-italic ps-1" id="noCollegesPlaceholder">
+                                    <i class="fas fa-hand-pointer me-1"></i> No institutions selected yet. Check institutions below.
+                                </span>
+                            </div>
+
+                            <!-- Search & Bulk Selection Toolbar -->
+                            <div class="input-group mb-2">
+                                <span class="input-group-text bg-white text-muted"><i class="fas fa-search"></i></span>
+                                <input type="text" id="collegeSearchInput" class="form-control" placeholder="Search institutions by name or code...">
+                                <button type="button" class="btn btn-outline-primary btn-sm" id="btnSelectAllColleges">Select All</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnClearAllColleges">Clear All</button>
+                            </div>
+
+                            <!-- Scrollable Checkbox List -->
+                            <div class="border rounded p-0 bg-white" style="max-height: 250px; overflow-y: auto;" id="collegeChecklistContainer">
                                 {% for col in colleges %}
-                                    <option value="{{ col.id }}" 
-                                            {% if is_edit and profile.college.id == col.id %}selected
-                                            {% elif form_data.college_id == col.id|stringformat:"s" %}selected{% endif %}>
-                                        {{ col.name }}
-                                    </option>
+                                <div class="form-check py-2 px-4 border-bottom college-item" data-name="{{ col.name|lower }}" data-code="{{ col.code|default:''|lower }}">
+                                    <input class="form-check-input college-checkbox me-2" 
+                                           type="checkbox" 
+                                           name="college_ids" 
+                                           value="{{ col.id }}" 
+                                           id="col_check_{{ col.id }}"
+                                           data-name="{{ col.name }}"
+                                           data-code="{{ col.code|default:'' }}"
+                                           {% if col.id in assigned_college_ids %}checked{% endif %}>
+                                    <label class="form-check-label d-flex justify-content-between align-items-center w-100 cursor-pointer mb-0" for="col_check_{{ col.id }}">
+                                        <span class="text-dark fw-medium">{{ col.name }}</span>
+                                        {% if col.code %}
+                                            <span class="badge bg-secondary-subtle text-secondary border font-monospace ms-2">{{ col.code }}</span>
+                                        {% endif %}
+                                    </label>
+                                </div>
                                 {% endfor %}
-                            </select>
-                            <div class="form-text small">
-                                <i class="fas fa-info-circle text-primary me-1"></i>
-                                Dynamically populated from active institutions. Strict backend isolation guarantees this administrator can only access records belonging to this selected college.
+                            </div>
+                            <div id="noMatchMessage" class="text-center text-muted small py-3 d-none border rounded mt-1 bg-light">
+                                <i class="fas fa-search me-1"></i> No matching colleges found.
+                            </div>
+                            <div class="text-danger small mt-1 d-none" id="collegeValidationError">
+                                <i class="fas fa-exclamation-circle me-1"></i> Please select at least one institution.
                             </div>
                         </div>
 
@@ -138,7 +204,7 @@
                             <a href="{% url 'college_admin_list' %}" class="btn btn-outline-secondary">
                                 Cancel
                             </a>
-                            <button type="submit" class="btn btn-primary px-4 fw-semibold">
+                            <button type="submit" class="btn btn-primary px-4 fw-semibold" id="btnSubmitForm">
                                 <i class="fas fa-save me-1"></i>
                                 {% if is_edit %}Save Changes{% else %}Create Administrator Account{% endif %}
                             </button>
@@ -152,3 +218,131 @@
 </div>
 {% endblock %}
 
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const searchInput = document.getElementById('collegeSearchInput');
+    const items = document.querySelectorAll('.college-item');
+    const checkboxes = document.querySelectorAll('.college-checkbox');
+    const badgesContainer = document.getElementById('selectedBadgesContainer');
+    const countBadge = document.getElementById('selectedCountBadge');
+    const placeholder = document.getElementById('noCollegesPlaceholder');
+    const noMatchMsg = document.getElementById('noMatchMessage');
+    const validationError = document.getElementById('collegeValidationError');
+    const form = document.getElementById('collegeAdminForm');
+
+    function updateSelectedBadges() {
+        const checkedBoxes = Array.from(checkboxes).filter(cb => cb.checked);
+        const count = checkedBoxes.length;
+
+        // Update count badge
+        countBadge.textContent = `${count} selected`;
+
+        if (count === 0) {
+            badgesContainer.innerHTML = '';
+            badgesContainer.appendChild(placeholder);
+            placeholder.classList.remove('d-none');
+            return;
+        }
+
+        placeholder.classList.add('d-none');
+        badgesContainer.innerHTML = '';
+
+        checkedBoxes.forEach(cb => {
+            const name = cb.getAttribute('data-name');
+            const cid = cb.value;
+
+            const chip = document.createElement('span');
+            chip.className = 'badge bg-white text-dark border p-2 d-inline-flex align-items-center college-chip shadow-sm';
+            chip.innerHTML = `
+                <i class="fas fa-university text-primary me-1"></i>
+                <span class="fw-semibold me-2">${name}</span>
+                <button type="button" class="btn-close ms-auto" style="font-size: 0.65rem;" title="Remove ${name}" data-cid="${cid}"></button>
+            `;
+
+            chip.querySelector('.btn-close').addEventListener('click', function () {
+                cb.checked = false;
+                updateSelectedBadges();
+            });
+
+            badgesContainer.appendChild(chip);
+        });
+
+        if (count > 0 && validationError) {
+            validationError.classList.add('d-none');
+        }
+    }
+
+    // Live search filter
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            const term = this.value.trim().toLowerCase();
+            let visibleCount = 0;
+
+            items.forEach(item => {
+                const name = item.getAttribute('data-name') || '';
+                const code = item.getAttribute('data-code') || '';
+                if (!term || name.includes(term) || code.includes(term)) {
+                    item.classList.remove('d-none');
+                    visibleCount++;
+                } else {
+                    item.classList.add('d-none');
+                }
+            });
+
+            if (visibleCount === 0) {
+                noMatchMsg.classList.remove('d-none');
+            } else {
+                noMatchMsg.classList.add('d-none');
+            }
+        });
+    }
+
+    // Select All
+    const btnSelectAll = document.getElementById('btnSelectAllColleges');
+    if (btnSelectAll) {
+        btnSelectAll.addEventListener('click', function () {
+            items.forEach(item => {
+                if (!item.classList.contains('d-none')) {
+                    const cb = item.querySelector('.college-checkbox');
+                    if (cb) cb.checked = true;
+                }
+            });
+            updateSelectedBadges();
+        });
+    }
+
+    // Clear All
+    const btnClearAll = document.getElementById('btnClearAllColleges');
+    if (btnClearAll) {
+        btnClearAll.addEventListener('click', function () {
+            checkboxes.forEach(cb => cb.checked = false);
+            updateSelectedBadges();
+        });
+    }
+
+    // Checkbox change listener
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateSelectedBadges);
+    });
+
+    // Form submit validation
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            const count = Array.from(checkboxes).filter(cb => cb.checked).length;
+            if (count === 0) {
+                e.preventDefault();
+                if (validationError) {
+                    validationError.classList.remove('d-none');
+                }
+                document.getElementById('collegeChecklistContainer').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return false;
+            }
+        });
+    }
+
+    // Initial render of badges
+    updateSelectedBadges();
+});
+</script>
+{% endblock %}
